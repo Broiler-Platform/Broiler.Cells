@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Broiler.Cells.Core/Broiler.Cells.Core.csproj" />
+    <PackageReference Include="Broiler.UI.Standard" />
+    <PackageReference Include="Broiler.UI.ScrollView.Standard" />
+  </ItemGroup>
+</Project>
