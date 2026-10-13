@@ -1,1 +1,6 @@
-<Project Sdk="Microsoft.NET.Sdk" />
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Broiler.Documents\src\Broiler.Documents.Csv\Broiler.Documents.Csv.csproj" Condition="Exists('..\..\..\Broiler.Documents\src\Broiler.Documents.Csv\Broiler.Documents.Csv.csproj')" />
+    <PackageReference Include="Broiler.Documents.Csv" Condition="!Exists('..\..\..\Broiler.Documents\src\Broiler.Documents.Csv\Broiler.Documents.Csv.csproj')" />
+  </ItemGroup>
+</Project>

@@ -1,27 +1,55 @@
 # Broiler Cells
 
 Broiler Cells is a minimal spreadsheet application in the Broiler family: a grid
-for displaying text, then editing it, then identifying cells by address.
+for displaying text, editing it, identifying cells by address, and saving/loading spreadsheets as CSV.
 
-**Status: Version 1 scaffolded and runnable on Windows.** The application displays
-a read-only 10 × 10 sample sheet using Broiler.UI and Direct2D. The model and grid
-control are separate, platform-neutral libraries.
+**Status: Version 3 implemented with Menu and CSV persistence, runnable on Windows.**
+The application displays, edits, and annotates spreadsheets using coordinate labels (A–CV, 1–100),
+active-cell address tracking, a standard menu bar (File and Help), and CSV table serialization powered
+by `Broiler.Documents.Csv`. The model, serialization, and cell control are separate, platform-neutral libraries.
 
 | Version | Scope | Maximum sheet size | Status |
 | --- | --- | --- | --- |
-| 1 | Very simple cell display | 10 rows × 10 columns (100 cells) | Scaffolded; checks pass |
-| 2 | Very simple cell editing | 100 rows × 100 columns (10,000 cells) | Planned |
-| 3 | Row and column labels; addresses such as A1 and B2 | 100 rows × 100 columns (10,000 cells) | Planned |
+| 1 | Very simple cell display | 10 rows × 10 columns (100 cells) | Verified; checks pass ([details](docs/version-1.md)) |
+| 2 | Very simple cell editing | 100 rows × 100 columns (10,000 cells) | Verified; checks pass ([details](docs/version-2.md)) |
+| 3 | Row and column labels; addresses such as A1 and B2 | 100 rows × 100 columns (10,000 cells) | Implemented; checks pass ([details](docs/version-3.md)) |
+| Enhancement | Menu bar (File, Help) & CSV serialization | 100 rows × 100 columns (10,000 cells) | Implemented; checks pass |
 
 The roadmap ends at Version 3. Each version builds on the previous one.
 
 - [Roadmap and acceptance criteria](docs/roadmap.md)
 - [Application design and reusable cell control](docs/design.md)
 - [Version 1 structure and verification](docs/version-1.md)
+- [Version 2 structure and verification](docs/version-2.md)
+- [Version 3 structure and verification](docs/version-3.md)
 
-The shared control currently provides display only. Editing and coordinate-label
-options remain planned so Broiler Writer can eventually embed a small table or
-sheet. Writer integration is a design consideration, not another release or an
+## Features
+
+- **Menu Bar**:
+  - **File**:
+    - **New** (`Ctrl+N`): Creates a new spreadsheet.
+    - **Open** (`Ctrl+O`): Prompts with standard file dialog to open and deserialize a CSV file.
+    - **Save** (`Ctrl+S`): Saves to current CSV file or prompts Save as.
+    - **Save as** (`Ctrl+Shift+S`): Prompts with standard file dialog to save CSV file.
+    - **Close** (`Ctrl+W`): Closes current document and resets to empty session.
+    - **Exit** (`Alt+F4`): Closes the application.
+  - **Help**:
+    - **About**: Displays standard Broiler About dialog with product and component version metadata.
+- **Spreadsheet Serialization**:
+  - `SheetCsvSerializer` in `Broiler.Cells.Core` converts between `SheetModel` and RFC 4180 CSV streams and files using `Broiler.Documents.Csv`.
+  - Handles multiline cell text, quotes, commas, and cell coordinates.
+
+- **Column and Row Resizing**:
+  - Drag column dividers in the column header (`A`, `B`, `C`...) to resize column widths (clamped between 20px and 1000px).
+  - Drag row dividers in the row header (`1`, `2`, `3`...) to resize row heights (clamped between 16px and 500px).
+  - Hovering dividers provides visual highlighting and native cursor feedback (`ResizeHorizontal` and `ResizeVertical`).
+  - Double-click a column divider to auto-fit its width to cell content.
+  - Double-click a row divider to reset its height to default (28px).
+  - Programmatic control via `SetColumnWidth`, `SetRowHeight`, `AutoFitColumn`, `ResetColumnWidth`, and `ResetRowHeight` with `ColumnResized` and `RowResized` events.
+
+The shared control provides display, selection, in-place editing, coordinate labels,
+and resizable columns/rows so Broiler Writer can embed a small table or sheet with or without headers.
+Writer integration is a design consideration, not another release or an
 implementation commitment in this roadmap.
 
 ## Build, run, and test
@@ -37,8 +65,12 @@ dotnet test tests/Broiler.Cells.Tests -c Release
 
 Resize the window to expose scrollbars. Drag their thumbs, use the mouse wheel
 (Shift+wheel horizontally), or Tab into an overflowing viewport and use arrow or
-Page keys to scroll. Clicking a cell does not select or edit it.
+Page keys to scroll.
 
-The sample is defined in `CellsWindow.cs`; smaller sheets can be supplied through
-`new SheetModel(rows, columns, initialValue)`. Version 1 has no data-entry or file
-opening interface, and all values are held in memory.
+Click a cell to select it. Navigate with arrow keys. Double-click or press F2 to
+edit the cell in place. Typing while a cell is selected replaces its contents.
+Press Enter to commit an edit, Escape to cancel, or Delete to clear the selected
+cell.
+
+The sample is defined in `CellsWindow.cs`; sheets up to 100 × 100 can be supplied
+through `new SheetModel(rows, columns, initialValue)`.

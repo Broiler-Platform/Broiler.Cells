@@ -66,7 +66,7 @@ public sealed class CellGridTests
     [Fact]
     public void LastCellRemainsReachableAndOffsetsClampAfterResize()
     {
-        using var fixture = new Fixture(new SheetModel(initialValue: (r, c) => r == 9 && c == 9 ? "Last cell" : null), 200, 110);
+        using var fixture = new Fixture(new SheetModel(10, 10, (r, c) => r == 9 && c == 9 ? "Last cell" : null), 200, 110);
         fixture.Session.RenderFrame();
         Assert.True(fixture.Scroll.HasHorizontalScrollbar);
         Assert.True(fixture.Scroll.HasVerticalScrollbar);
@@ -86,7 +86,7 @@ public sealed class CellGridTests
     [Fact]
     public void PointerAndKeyboardInputCannotEditOrSelectCells()
     {
-        using var fixture = new Fixture(new SheetModel(initialValue: (_, _) => "Original"), 200, 110);
+        using var fixture = new Fixture(new SheetModel(initialValue: (_, _) => "Original"), 200, 110, isEditingEnabled: false);
         fixture.Session.RenderFrame();
 #pragma warning disable CS0618
         var input = new StandardLegacyGraphicsInputAdapter("cells-test");
@@ -123,13 +123,307 @@ public sealed class CellGridTests
         Assert.NotEqual(cells[0].Id, cells[1].Id);
     }
 
+    [Fact]
+    public void SelectEditCommitCancelReplaceAndClearWorkOn100x100Sheet()
+    {
+        using var fixture = new Fixture(new SheetModel(100, 100, (r, c) => $"R{r}C{c}"));
+        fixture.Session.RenderFrame();
+#pragma warning disable CS0618
+        var input = new StandardLegacyGraphicsInputAdapter("cells-test");
+#pragma warning restore CS0618
+
+        // Select cell at row 10, col 5 by clicking it
+        double clickX = 5 * CellGrid.CellWidth + 10;
+        double clickY = 10 * CellGrid.CellHeight + 10;
+        fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(clickX, clickY), BMouseButtons.Left, BMouseButtons.Left)));
+        fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(clickX, clickY), BMouseButtons.None, BMouseButtons.Left)));
+        Assert.Equal(new CellPosition(10, 5), fixture.Grid.SelectedCell);
+        Assert.False(fixture.Grid.IsEditing);
+
+        // Press F2 to start editing
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x71, false, false, false), KeyboardKeyTransition.Down));
+        Assert.True(fixture.Grid.IsEditing);
+
+        // Type additional characters and commit with Enter
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('!')));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x0D, false, false, false), KeyboardKeyTransition.Down));
+        Assert.False(fixture.Grid.IsEditing);
+        Assert.Equal("R10C5!", fixture.Grid.Sheet[10, 5]);
+        Assert.Equal(new CellPosition(10, 5), fixture.Grid.SelectedCell);
+
+        // Move to cell (10, 6) and test Cancel with Escape
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(BVirtualKey.Right, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal(new CellPosition(10, 6), fixture.Grid.SelectedCell);
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x71, false, false, false), KeyboardKeyTransition.Down));
+        Assert.True(fixture.Grid.IsEditing);
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('?')));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x1B, false, false, false), KeyboardKeyTransition.Down));
+        Assert.False(fixture.Grid.IsEditing);
+        Assert.Equal("R10C6", fixture.Grid.Sheet[10, 6]);
+
+        // Move to cell (10, 7) and test typing replaces old value
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(BVirtualKey.Right, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal(new CellPosition(10, 7), fixture.Grid.SelectedCell);
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('N')));
+        Assert.True(fixture.Grid.IsEditing);
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('e')));
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('w')));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x0D, false, false, false), KeyboardKeyTransition.Down));
+        Assert.False(fixture.Grid.IsEditing);
+        Assert.Equal("New", fixture.Grid.Sheet[10, 7]);
+
+        // Move to cell (10, 8) and test Delete clears cell while not editing
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(BVirtualKey.Right, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal(new CellPosition(10, 8), fixture.Grid.SelectedCell);
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x2E, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal(string.Empty, fixture.Grid.Sheet[10, 8]);
+    }
+
+    [Fact]
+    public void CancelPreservesOldValueAndCommitChangesOnlyEditedCell()
+    {
+        using var fixture = new Fixture(new SheetModel(100, 100, (r, c) => $"Val_{r}_{c}"));
+        fixture.Session.RenderFrame();
+#pragma warning disable CS0618
+        var input = new StandardLegacyGraphicsInputAdapter("cells-test");
+#pragma warning restore CS0618
+
+        fixture.Grid.SelectCell(new CellPosition(5, 5));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x71, false, false, false), KeyboardKeyTransition.Down));
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('X')));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x1B, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal("Val_5_5", fixture.Grid.Sheet[5, 5]);
+
+        // Now commit a new value
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x71, false, false, false), KeyboardKeyTransition.Down));
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('Y')));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x0D, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal("Val_5_5Y", fixture.Grid.Sheet[5, 5]);
+
+        // Surrounding cells unchanged
+        Assert.Equal("Val_4_5", fixture.Grid.Sheet[4, 5]);
+        Assert.Equal("Val_6_5", fixture.Grid.Sheet[6, 5]);
+        Assert.Equal("Val_5_4", fixture.Grid.Sheet[5, 4]);
+        Assert.Equal("Val_5_6", fixture.Grid.Sheet[5, 6]);
+        Assert.Equal("Val_0_0", fixture.Grid.Sheet[0, 0]);
+        Assert.Equal("Val_99_99", fixture.Grid.Sheet[99, 99]);
+    }
+
+    [Fact]
+    public void CommittedValuesRemainCorrectAfterScrollingAwayAndBack()
+    {
+        using var fixture = new Fixture(new SheetModel(100, 100, (r, c) => $"R{r}C{c}"), 300, 200);
+        fixture.Session.RenderFrame();
+#pragma warning disable CS0618
+        var input = new StandardLegacyGraphicsInputAdapter("cells-test");
+#pragma warning restore CS0618
+
+        fixture.Grid.SelectCell(new CellPosition(0, 0));
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('H')));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x0D, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal("H", fixture.Grid.Sheet[0, 0]);
+
+        // Scroll far away so (0,0) is clipped and not rendered
+        fixture.Scroll.SetOffset(new BPoint(5000, 5000));
+        BRenderList scrolledAwayFrame = fixture.Session.RenderFrame();
+        Assert.DoesNotContain(scrolledAwayFrame.Commands.OfType<BRenderCommand.DrawText>(), t => t.Text.Text == "H");
+
+        // Scroll back to (0,0)
+        fixture.Scroll.SetOffset(new BPoint(0, 0));
+        BRenderList scrolledBackFrame = fixture.Session.RenderFrame();
+        Assert.Contains(scrolledBackFrame.Commands.OfType<BRenderCommand.DrawText>(), t => t.Text.Text == "H");
+        Assert.Equal("H", fixture.Grid.Sheet[0, 0]);
+    }
+
+    [Fact]
+    public void KeyboardNavigationReachesAllFourCornersWithoutLeavingSheet()
+    {
+        using var fixture = new Fixture(new SheetModel(100, 100));
+        fixture.Session.RenderFrame();
+#pragma warning disable CS0618
+        var input = new StandardLegacyGraphicsInputAdapter("cells-test");
+#pragma warning restore CS0618
+
+        fixture.Grid.SelectCell(new CellPosition(0, 0));
+
+        // Attempting to move past top/left stays at (0, 0)
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(BVirtualKey.Up, false, false, false), KeyboardKeyTransition.Down));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(BVirtualKey.Left, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal(new CellPosition(0, 0), fixture.Grid.SelectedCell);
+
+        // Move right to top-right corner (0, 99)
+        for (int i = 0; i < 150; i++)
+            fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(BVirtualKey.Right, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal(new CellPosition(0, 99), fixture.Grid.SelectedCell);
+
+        // Move down to bottom-right corner (99, 99)
+        for (int i = 0; i < 150; i++)
+            fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(BVirtualKey.Down, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal(new CellPosition(99, 99), fixture.Grid.SelectedCell);
+
+        // Move left to bottom-left corner (99, 0)
+        for (int i = 0; i < 150; i++)
+            fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(BVirtualKey.Left, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal(new CellPosition(99, 0), fixture.Grid.SelectedCell);
+
+        // Move up back to top-left corner (0, 0)
+        for (int i = 0; i < 150; i++)
+            fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(BVirtualKey.Up, false, false, false), KeyboardKeyTransition.Down));
+        Assert.Equal(new CellPosition(0, 0), fixture.Grid.SelectedCell);
+    }
+
+    [Fact]
+    public void ClickingAnotherCellCommitsBeforeSelectingIt()
+    {
+        using var fixture = new Fixture(new SheetModel(10, 10, (r, c) => $"Orig_{r}_{c}"));
+        fixture.Session.RenderFrame();
+#pragma warning disable CS0618
+        var input = new StandardLegacyGraphicsInputAdapter("cells-test");
+#pragma warning restore CS0618
+
+        fixture.Grid.SelectCell(new CellPosition(1, 1));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x71, false, false, false), KeyboardKeyTransition.Down));
+        Assert.True(fixture.Grid.IsEditing);
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('+')));
+
+        // Click on cell (2, 2)
+        double clickX = 2 * CellGrid.CellWidth + 10;
+        double clickY = 2 * CellGrid.CellHeight + 10;
+        fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(clickX, clickY), BMouseButtons.Left, BMouseButtons.Left)));
+        fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(clickX, clickY), BMouseButtons.None, BMouseButtons.Left)));
+
+        Assert.False(fixture.Grid.IsEditing);
+        Assert.Equal("Orig_1_1+", fixture.Grid.Sheet[1, 1]);
+        Assert.Equal(new CellPosition(2, 2), fixture.Grid.SelectedCell);
+    }
+
+    [Fact]
+    public void EditorAndSelectionRemainAlignedWithCellsAfterScrollingAndResizing()
+    {
+        using var fixture = new Fixture(new SheetModel(100, 100), 500, 300);
+        fixture.Session.RenderFrame();
+#pragma warning disable CS0618
+        var input = new StandardLegacyGraphicsInputAdapter("cells-test");
+#pragma warning restore CS0618
+
+        fixture.Grid.SelectCell(new CellPosition(3, 3));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x71, false, false, false), KeyboardKeyTransition.Down));
+        Assert.True(fixture.Grid.IsEditing);
+
+        // Scroll
+        fixture.Scroll.SetOffset(new BPoint(96, 28));
+        fixture.Session.RenderFrame();
+
+        BRect expectedBounds = fixture.Grid.CellBounds(3, 3);
+        // The bounds of CellBounds match Bounds.X + 3*CellWidth + 1
+        Assert.Equal(fixture.Grid.Bounds.X + 3 * CellGrid.CellWidth + 1, expectedBounds.X);
+        Assert.Equal(fixture.Grid.Bounds.Y + 3 * CellGrid.CellHeight + 1, expectedBounds.Y);
+
+        // Resize
+        fixture.Host.ViewportSize = new BSize(800, 600);
+        fixture.Session.RenderFrame();
+        expectedBounds = fixture.Grid.CellBounds(3, 3);
+        Assert.Equal(fixture.Grid.Bounds.X + 3 * CellGrid.CellWidth + 1, expectedBounds.X);
+        Assert.Equal(fixture.Grid.Bounds.Y + 3 * CellGrid.CellHeight + 1, expectedBounds.Y);
+    }
+
+    [Fact]
+    public void EventsAreRaisedOnCommittedAndSelectedCellChanged()
+    {
+        using var fixture = new Fixture(new SheetModel(10, 10, (r, c) => "Test"));
+        fixture.Session.RenderFrame();
+#pragma warning disable CS0618
+        var input = new StandardLegacyGraphicsInputAdapter("cells-test");
+#pragma warning restore CS0618
+
+        CellPosition? selectedEvent = null;
+        CellCommittedEventArgs? committedEvent = null;
+
+        fixture.Grid.SelectedCellChanged += (_, pos) => selectedEvent = pos;
+        fixture.Grid.CellCommitted += (_, args) => committedEvent = args;
+
+        fixture.Grid.SelectCell(new CellPosition(2, 4));
+        Assert.Equal(new CellPosition(2, 4), selectedEvent);
+
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('A')));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x0D, false, false, false), KeyboardKeyTransition.Down));
+
+        Assert.NotNull(committedEvent);
+        Assert.Equal(new CellPosition(2, 4), committedEvent!.Position);
+        Assert.Equal("Test", committedEvent.OldValue);
+        Assert.Equal("A", committedEvent.NewValue);
+    }
+
+    [Fact]
+    public void DoubleClickStartsEditingInPlace()
+    {
+        using var fixture = new Fixture(new SheetModel(10, 10, (r, c) => $"Cell_{r}_{c}"));
+        fixture.Session.RenderFrame();
+#pragma warning disable CS0618
+        var input = new StandardLegacyGraphicsInputAdapter("cells-test");
+#pragma warning restore CS0618
+
+        double clickX = 1 * CellGrid.CellWidth + 10;
+        double clickY = 1 * CellGrid.CellHeight + 10;
+
+        // First click
+        fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(clickX, clickY), BMouseButtons.Left, BMouseButtons.Left)));
+        fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(clickX, clickY), BMouseButtons.None, BMouseButtons.Left)));
+        Assert.Equal(new CellPosition(1, 1), fixture.Grid.SelectedCell);
+        Assert.False(fixture.Grid.IsEditing);
+
+        // Second click (quick succession)
+        fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(clickX, clickY), BMouseButtons.Left, BMouseButtons.Left)));
+        fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(clickX, clickY), BMouseButtons.None, BMouseButtons.Left)));
+        Assert.True(fixture.Grid.IsEditing);
+    }
+
+    [Fact]
+    public void ContentBeginningWithEqualsIsTreatedAsPlainText()
+    {
+        using var fixture = new Fixture(new SheetModel(10, 10));
+        fixture.Session.RenderFrame();
+#pragma warning disable CS0618
+        var input = new StandardLegacyGraphicsInputAdapter("cells-test");
+#pragma warning restore CS0618
+
+        fixture.Grid.SelectCell(new CellPosition(0, 0));
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('=')));
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('1')));
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('+')));
+        fixture.Session.DispatchInput(input.FromText(new BTextInputEventArgs('1')));
+        fixture.Session.DispatchInput(input.FromKey(new BKeyEventArgs(0x0D, false, false, false), KeyboardKeyTransition.Down));
+
+        Assert.Equal("=1+1", fixture.Grid.Sheet[0, 0]);
+    }
+
+    [Fact]
+    public void ActiveCellOutlineAndAccessibilitySelectionStateRendered()
+    {
+        using var fixture = new Fixture(new SheetModel(2, 2, (r, c) => $"Val{r}{c}"));
+        fixture.Session.RenderFrame();
+
+        fixture.Grid.SelectCell(new CellPosition(1, 1));
+        BRenderList frame = fixture.Session.RenderFrame();
+
+        // Check focus ring rectangle is drawn around (1, 1)
+        BRect cell = fixture.Grid.CellBounds(1, 1);
+        Assert.Contains(frame.Commands.OfType<BRenderCommand.FillRect>(), r => r.Rect == new BRect(cell.X - 1, cell.Y - 1, cell.Width + 2, 2));
+
+        // Check accessibility
+        var nodes = fixture.Grid.GetSemanticNode().Children;
+        Assert.True(nodes[3].State.HasFlag(UiSemanticState.Selected));
+        Assert.False(nodes[0].State.HasFlag(UiSemanticState.Selected));
+        Assert.False(nodes[3].State.HasFlag(UiSemanticState.ReadOnly));
+    }
+
     private sealed class Fixture : IDisposable
     {
-        public Fixture(SheetModel sheet, double width = 1000, double height = 400)
+        public Fixture(SheetModel sheet, double width = 1000, double height = 400, bool isEditingEnabled = true)
         {
             Host = new TestHost { ViewportSize = new BSize(width, height) };
             Session = new StandardUiSessionBuilder().Build(Host);
-            Grid = new CellGrid(sheet);
+            Grid = new CellGrid(sheet, isEditingEnabled);
             Scroll = new StandardScrollView { FocusWhenScrollable = true };
             Scroll.AddChild(Grid);
             Session.AddRoot(Scroll);

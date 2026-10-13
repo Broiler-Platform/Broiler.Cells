@@ -3,5 +3,6 @@
     <ProjectReference Include="../Broiler.Cells.Core/Broiler.Cells.Core.csproj" />
     <PackageReference Include="Broiler.UI.Standard" />
     <PackageReference Include="Broiler.UI.ScrollView.Standard" />
+    <PackageReference Include="Broiler.UI.Edit.Standard" />
   </ItemGroup>
 </Project>

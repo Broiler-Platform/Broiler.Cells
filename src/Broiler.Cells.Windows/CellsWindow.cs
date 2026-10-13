@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Broiler.Cells.Core;
 using Broiler.Graphics.Geometry;
 using Broiler.Graphics.Rendering;
@@ -10,13 +11,23 @@ using Broiler.Hosting.Windows.Input;
 using Broiler.Input.Keyboard;
 using Broiler.UI;
 using Broiler.UI.Standard;
+using Broiler.UI.Window;
+using Broiler.UI.Window.Standard;
 
 namespace Broiler.Cells.Windows;
 
-internal sealed class CellsWindow : Direct2DWindow, IUiHost
+internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost
 {
+    [DllImport("user32.dll", ExactSpelling = true)]
+    private static extern nint LoadCursorW(nint hInstance, nint lpCursorName);
+
+    [DllImport("user32.dll", ExactSpelling = true)]
+    private static extern nint SetCursor(nint hCursor);
+
+    private nint _activeCursorHandle;
     private readonly UiSession _session;
     private readonly CellsView _view;
+    private readonly StandardWindow _rootWindow;
     private readonly StandardQueuedUiDispatcher _dispatcher;
     private WindowsInputBridge? _inputBridge;
     private WindowsAutomationBridge? _automation;
@@ -30,12 +41,12 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost
     {
         Title = "Broiler Cells",
         ClientWidth = 1000,
-        ClientHeight = 360,
+        ClientHeight = 400,
         ClearColor = CellsView.Canvas,
         RenderOptions = new BRenderOptions(Antialias: true, VSync: true, SubpixelText: true),
     })
     {
-        _dispatcher = new StandardQueuedUiDispatcher(() => PostToUiThread(() => _dispatcher!.Drain()));
+        _dispatcher = new StandardQueuedUiDispatcher(() => PostToUiThread(DrainDispatcher));
         _session = new StandardUiSessionBuilder().WithDispatcher(_dispatcher).Build(this);
         _view = new CellsView(new SheetModel(initialValue: (row, column) => (row, column) switch
         {
@@ -49,8 +60,22 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost
             (9, 9) => "Last cell",
             _ => string.Empty,
         }));
-        _session.AddRoot(_view);
+
+        _rootWindow = new StandardWindow
+        {
+            Chrome = UiWindowChrome.None,
+            BorderThickness = 0,
+            Background = CellsView.Canvas,
+        };
+        _rootWindow.AddChild(_view);
+        _view.OwnerWindow = _rootWindow;
+
+        _view.ExitRequested += (_, _) => Close();
+        _view.TitleChanged += (_, newTitle) => SetTitle(newTitle);
+
+        _session.AddRoot(_rootWindow);
         StandardThemeController.Apply(_session, CellsView.Theme);
+        _view.CellControl.SelectCell(new CellPosition(1, 1));
     }
 
     BSize IUiHost.ViewportSize => ClientSize;
@@ -63,13 +88,30 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost
     {
         _inputBridge = new WindowsInputBridge(NativeHandle, RenderNativeHandle, _session,
             scaleProvider: () => DpiScale, invalidateAction: Invalidate);
-        _automation = new WindowsAutomationBridge(RenderNativeHandle, _session, _view, () => DpiScale);
+        _automation = new WindowsAutomationBridge(RenderNativeHandle, _session, _rootWindow, () => DpiScale);
     }
 
     protected override BRenderList? BuildRenderList(BSize clientSize)
     {
-        _dispatcher.Drain();
+        DrainDispatcher();
         return _session.RenderFrame();
+    }
+
+    /// <summary>
+    /// Runs the work other threads posted back to the UI. A callback that throws is logged
+    /// rather than taking the window down, which is how Direct2DWindow treats callbacks
+    /// posted to it.
+    /// </summary>
+    private void DrainDispatcher()
+    {
+        try
+        {
+            _dispatcher.Drain();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(ex);
+        }
     }
 
     protected override void OnResized(BSize clientSize, double dpiScale) => Invalidate();
@@ -77,6 +119,7 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost
     protected override void OnPointerUp(BPointerEventArgs e) => Dispatch(_input.FromPointerButton(e));
     protected override void OnPointerMove(BPointerEventArgs e) => Dispatch(_input.FromPointerMove(e));
     protected override void OnMouseWheel(BMouseWheelEventArgs e) => Dispatch(_input.FromMouseWheel(e));
+    protected override void OnTextInput(BTextInputEventArgs e) => Dispatch(_input.FromText(e));
     protected override void OnKeyDown(BKeyEventArgs e) => Dispatch(_input.FromKey(e, KeyboardKeyTransition.Down));
     protected override void OnKeyUp(BKeyEventArgs e) => Dispatch(_input.FromKey(e, KeyboardKeyTransition.Up));
 
@@ -86,8 +129,28 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost
             Invalidate();
     }
 
+    public void SetCursor(UiCursorShape shape)
+    {
+        nint cursor = shape switch
+        {
+            UiCursorShape.ResizeHorizontal => LoadCursorW(0, 32644),
+            UiCursorShape.ResizeVertical => LoadCursorW(0, 32645),
+            UiCursorShape.Hand => LoadCursorW(0, 32649),
+            UiCursorShape.Text => LoadCursorW(0, 32513),
+            UiCursorShape.Wait => LoadCursorW(0, 32514),
+            _ => LoadCursorW(0, 32512),
+        };
+        _activeCursorHandle = cursor;
+        SetCursor(cursor);
+    }
+
     protected override void OnNativeWindowMessage(nint hwnd, uint message, nint wParam, nint lParam)
     {
+        if (message == 0x0020 /* WM_SETCURSOR */ && _activeCursorHandle != 0)
+        {
+            SetCursor(_activeCursorHandle);
+        }
+
         base.OnNativeWindowMessage(hwnd, message, wParam, lParam);
         if (hwnd == NativeHandle)
         {

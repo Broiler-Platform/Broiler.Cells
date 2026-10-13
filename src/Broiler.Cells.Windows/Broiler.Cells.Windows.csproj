@@ -3,11 +3,21 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <PublishAot>true</PublishAot>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Broiler.Cells.Controls/Broiler.Cells.Controls.csproj" />
     <PackageReference Include="Broiler.UI.Label.Standard" />
+    <PackageReference Include="Broiler.UI.Menu.Standard" />
+    <PackageReference Include="Broiler.UI.FileDialog.Standard" />
+    <PackageReference Include="Broiler.UI.AboutDialog.Standard" />
+    <PackageReference Include="Broiler.UI.Dialog.Standard" />
+    <PackageReference Include="Broiler.UI.Button.Standard" />
+    <PackageReference Include="Broiler.UI.Window.Standard" />
     <PackageReference Include="Broiler.Graphics.Windows" />
     <PackageReference Include="Broiler.Hosting.Windows" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Broiler.Cells.Tests" />
   </ItemGroup>
 </Project>

@@ -1,10 +1,11 @@
 # Broiler Cells roadmap
 
-Status: **Version 1 scaffolded**; Versions 2 and 3 remain planned. Version 1's
-automated checks pass and its native default window has been visually checked;
-see the [verification record](version-1.md). Version labels describe product
-milestones, without assigning release dates or package version numbers. This
-roadmap contains exactly three versions.
+Status: **Version 3 implemented**. All three roadmap milestones are complete.
+Automated checks pass and the native default window has been visually checked;
+see the [Version 1 record](version-1.md), [Version 2 record](version-2.md), and
+[Version 3 record](version-3.md). Version labels describe product milestones,
+without assigning release dates or package version numbers. This roadmap contains
+exactly three versions.
 
 ## Scope
 
@@ -62,13 +63,13 @@ comments, and collaboration are outside this roadmap.
 
 **Acceptance**
 
-- [ ] Select, edit, commit, cancel, replace, and clear work on a 100 × 100 sheet.
-- [ ] Cancel preserves the old value; commit changes only the edited cell.
-- [ ] Committed values remain correct after scrolling away and back.
-- [ ] Keyboard navigation reaches all four corners without leaving the sheet.
-- [ ] A dimension of 101 is rejected, and Version 1's 10 × 10 limit remains enforced
+- [x] Select, edit, commit, cancel, replace, and clear work on a 100 × 100 sheet.
+- [x] Cancel preserves the old value; commit changes only the edited cell.
+- [x] Committed values remain correct after scrolling away and back.
+- [x] Keyboard navigation reaches all four corners without leaving the sheet.
+- [x] A dimension of 101 is rejected, and Version 1's 10 × 10 limit remains enforced
   when running its configuration.
-- [ ] The editor and selection remain aligned with cells after scrolling/resizing.
+- [x] The editor and selection remain aligned with cells after scrolling/resizing.
 
 ## Version 3 — Very simple cell annotations
 
@@ -87,12 +88,12 @@ an active-cell address. It does not mean comments or notes attached to cells.
 
 **Acceptance**
 
-- [ ] Column labels transition correctly: Z → AA, AZ → BA, and the 100th column is CV.
-- [ ] The first and last addresses of a 100 × 100 sheet are A1 and CV100.
-- [ ] Selecting row 2, column 2 shows B2; navigation and scrolling keep the address
+- [x] Column labels transition correctly: Z → AA, AZ → BA, and the 100th column is CV.
+- [x] The first and last addresses of a 100 × 100 sheet are A1 and CV100.
+- [x] Selecting row 2, column 2 shows B2; navigation and scrolling keep the address
   and headers aligned with the selected cell.
-- [ ] Header space does not count toward the 100 × 100 data-cell limit.
-- [ ] Hiding headers for an embedded table preserves its values and editing behavior.
+- [x] Header space does not count toward the 100 × 100 data-cell limit.
+- [x] Hiding headers for an embedded table preserves its values and editing behavior.
 
 Implementation stops when Version 3 meets these criteria. No further versions are
 planned here. See the [design](design.md) for the visual direction and control boundary.
