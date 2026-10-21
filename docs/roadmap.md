@@ -83,7 +83,8 @@ an active-cell address. It does not mean comments or notes attached to cells.
   needed for the sheet's actual dimensions.
 - Keep these headers visible while the cell area scrolls.
 - Show the selected cell address, such as **A1** or **B2**, in the status strip.
-- Treat headers as labels; clicking one does not select a whole row or column.
+- Original milestone: treat headers as labels. The later row/column multi-select
+  enhancement adds header clicks, Shift/Ctrl selection, and dragging (see [current features](../README.md#features)).
 - Keep labels outside the cell data, so they never consume a row or column.
 
 **Acceptance**

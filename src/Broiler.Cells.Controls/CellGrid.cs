@@ -44,6 +44,13 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
     private BPoint _lastClickPosition;
     private CellPosition? _lastClickCell;
     private bool _hasClicked;
+    private readonly SortedSet<int> _selectedRows = [];
+    private readonly SortedSet<int> _selectedColumns = [];
+    private int _selectionAnchor;
+    private bool _anchorIsColumn;
+    private CellPosition? _cellSelectionAnchor;
+    private bool _isSelectingCells;
+    private BPoint _lastSelectionPointer;
 
     public CellGrid(SheetModel sheet, bool isEditingEnabled = true)
     {
@@ -93,6 +100,18 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
     public BSize SheetSize => new(TotalWidth + 1, TotalHeight + 1);
     public CellPosition? SelectedCell { get; private set; }
     public string? SelectedAddress => SelectedCell?.ToAddress();
+    public IReadOnlyList<int> SelectedRows => _selectedRows.ToArray();
+    public IReadOnlyList<int> SelectedColumns => _selectedColumns.ToArray();
+
+    public bool IsCellSelected(int row, int column) =>
+        _selectedRows.Contains(row) || _selectedColumns.Contains(column) ||
+        SelectedCell == new CellPosition(row, column) ||
+        (_cellSelectionAnchor is { } anchor && SelectedCell is { } end &&
+         row >= Math.Min(anchor.Row, end.Row) && row <= Math.Max(anchor.Row, end.Row) &&
+         column >= Math.Min(anchor.Column, end.Column) && column <= Math.Max(anchor.Column, end.Column));
+
+    public bool IsRowSelected(int row) => _selectedRows.Contains(row);
+    public bool IsColumnSelected(int column) => _selectedColumns.Contains(column);
     public bool IsEditing => _isEditing;
     public bool AreHeadersVisible { get; set; } = true;
 
@@ -234,13 +253,22 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
             Focusable = value;
             AccessibleName = value ? "Sheet" : "Read-only sheet";
             if (!value)
+            {
+                EndCellSelectionDrag();
+                _cellSelectionAnchor = null;
                 SelectedCell = null;
+                _selectedRows.Clear();
+                _selectedColumns.Clear();
+                SelectedCellChanged?.Invoke(this, null);
+                NotifySelectionChanged();
+            }
 
             Invalidate(UiInvalidationKind.Measure | UiInvalidationKind.Arrange | UiInvalidationKind.Render | UiInvalidationKind.Semantic);
         }
     }
 
     public event EventHandler<CellPosition?>? SelectedCellChanged;
+    public event EventHandler? SelectionChanged;
     public event EventHandler<CellCommittedEventArgs>? CellCommitted;
     public event EventHandler<ColumnResizedEventArgs>? ColumnResized;
     public event EventHandler<RowResizedEventArgs>? RowResized;
@@ -259,6 +287,8 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
     public void SetSheet(SheetModel sheet)
     {
         ArgumentNullException.ThrowIfNull(sheet);
+        EndCellSelectionDrag();
+        _cellSelectionAnchor = null;
         if (_isEditing)
             CancelEdit();
 
@@ -314,29 +344,104 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         }
 
         SelectedCell = null;
+        _selectedRows.Clear();
+        _selectedColumns.Clear();
+        _hasClicked = false;
         SelectedCellChanged?.Invoke(this, null);
+        NotifySelectionChanged();
 
         Invalidate(UiInvalidationKind.Measure | UiInvalidationKind.Arrange | UiInvalidationKind.Render | UiInvalidationKind.Semantic);
     }
 
-    public void SelectCell(CellPosition position)
+    public void SelectCell(CellPosition position) => SelectCell(position, extend: false);
+
+    /// <summary>Select a cell, optionally extending a rectangle from the existing cell anchor.</summary>
+    public void SelectCell(CellPosition position, bool extend)
     {
         int row = Math.Clamp(position.Row, 0, Sheet.RowCount - 1);
         int col = Math.Clamp(position.Column, 0, Sheet.ColumnCount - 1);
         var newPos = new CellPosition(row, col);
-        if (SelectedCell == newPos)
+        var anchor = extend ? _cellSelectionAnchor ?? SelectedCell ?? newPos : newPos;
+        if (SelectedCell == newPos && _cellSelectionAnchor == anchor &&
+            _selectedRows.Count == 0 && _selectedColumns.Count == 0)
             return;
 
+        if (_isEditing)
+            CommitEdit();
         var oldPos = SelectedCell;
+        _selectedRows.Clear();
+        _selectedColumns.Clear();
+        _cellSelectionAnchor = anchor;
         SelectedCell = newPos;
-        SelectedCellChanged?.Invoke(this, newPos);
-
-        if (oldPos is { } old)
-            _semanticCells[old.Row, old.Column].Invalidate(UiInvalidationKind.Semantic);
-        _semanticCells[row, col].Invalidate(UiInvalidationKind.Semantic);
+        if (oldPos != newPos)
+            SelectedCellChanged?.Invoke(this, newPos);
+        NotifySelectionChanged();
 
         BringIntoView(CellBounds(row, col));
         InvalidateRender();
+    }
+
+    /// <summary>Select a whole row. Extend selects from the anchor; toggle adds or removes a row.</summary>
+    public void SelectRow(int row, bool extend = false, bool toggle = false) =>
+        SelectHeader(row, false, extend, toggle);
+
+    /// <summary>Select a whole column. Extend selects from the anchor; toggle adds or removes a column.</summary>
+    public void SelectColumn(int column, bool extend = false, bool toggle = false) =>
+        SelectHeader(column, true, extend, toggle);
+
+    internal void ExtendHeaderSelection(int index, bool column, IReadOnlyList<int> baseline) =>
+        SelectHeader(index, column, true, false, baseline);
+
+    private void SelectHeader(int index, bool column, bool extend, bool toggle, IReadOnlyList<int>? baseline = null)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, column ? Sheet.ColumnCount : Sheet.RowCount);
+        if (!IsEditingEnabled)
+            return;
+        EndCellSelectionDrag();
+        _cellSelectionAnchor = null;
+        if (_isEditing)
+            CommitEdit();
+
+        var selected = column ? _selectedColumns : _selectedRows;
+        var other = column ? _selectedRows : _selectedColumns;
+        if (!extend || (baseline is null && selected.Count == 0) || _anchorIsColumn != column)
+            _selectionAnchor = index;
+        _anchorIsColumn = column;
+        other.Clear();
+        if (!toggle)
+            selected.Clear();
+        if (baseline is not null)
+            selected.UnionWith(baseline);
+        if (extend)
+        {
+            for (int i = Math.Min(_selectionAnchor, index); i <= Math.Max(_selectionAnchor, index); i++)
+                selected.Add(i);
+        }
+        else if (!toggle || !selected.Remove(index))
+        {
+            selected.Add(index);
+        }
+
+        var old = SelectedCell;
+        int active = selected.Contains(index) ? index : selected.Count > 0 ? selected.Min : -1;
+        SelectedCell = active < 0 ? null : column
+            ? new CellPosition(old?.Row ?? 0, active)
+            : new CellPosition(active, old?.Column ?? 0);
+        _hasClicked = false;
+        if (old != SelectedCell)
+            SelectedCellChanged?.Invoke(this, SelectedCell);
+        NotifySelectionChanged();
+        if (SelectedCell is { } pos)
+            BringIntoView(CellBounds(pos.Row, pos.Column));
+    }
+
+    private void NotifySelectionChanged()
+    {
+        foreach (var cell in _semanticCells)
+            cell.Invalidate(UiInvalidationKind.Semantic);
+        InvalidateRender();
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void StartEditing(string initialText)
@@ -344,6 +449,7 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         if (!IsEditingEnabled || SelectedCell is null)
             return;
 
+        EndCellSelectionDrag();
         _editingRow = SelectedCell.Value.Row;
         _editingCol = SelectedCell.Value.Column;
         _isEditing = true;
@@ -471,6 +577,9 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
                 if (cell.Right <= visible.Left || cell.Left >= visible.Right)
                     continue;
 
+                if (IsCellSelected(row, column))
+                    list.FillRect(cell, _theme.AccentSoft);
+
                 string text = Sheet[row, column];
                 if (text.Length == 0)
                     continue;
@@ -478,7 +587,7 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
                 // Display on one line without altering the stored value.
                 text = text.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ');
                 list.PushClip(cell);
-                list.DrawText(new BTextRun(text, _font, _theme.Text),
+                list.DrawText(new BTextRun(text, _font, IsCellSelected(row, column) ? _theme.SelectionText : _theme.Text),
                     new BPoint(cell.X + 6, rowTop + textYOffset));
                 list.PopClip();
             }
@@ -503,6 +612,16 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         if (input.Kind == UiInputEventKind.PointerMove)
         {
             (Session?.Host as IUiCursorHost)?.SetCursor(UiCursorShape.Arrow);
+            if (_isSelectingCells && IsEditingEnabled)
+            {
+                if (Session?.CapturedElement != this)
+                {
+                    EndCellSelectionDrag();
+                    return false;
+                }
+                UpdateCellSelectionDrag(input.Position);
+                return true;
+            }
             return false;
         }
 
@@ -536,20 +655,21 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
                 return false;
 
             var clicked = new CellPosition(row, col);
+            bool extend = input.KeyModifiers.HasFlag(KeyboardModifierState.Shift);
 
             if (_isEditing)
             {
-                if (clicked != SelectedCell)
-                {
-                    CommitEdit();
-                    SelectCell(clicked);
-                    Session?.SetFocus(this);
-                }
-                return true;
+                if (clicked == SelectedCell)
+                    return true;
+                CommitEdit();
+                _hasClicked = false;
             }
 
-            bool isDouble = IsDoubleClick(input.Position) && SelectedCell == clicked;
-            UpdateClickState(input.Position, clicked);
+            bool isDouble = !extend && IsDoubleClick(input.Position) && SelectedCell == clicked;
+            if (extend)
+                _hasClicked = false;
+            else
+                UpdateClickState(input.Position, clicked);
 
             if (isDouble)
             {
@@ -558,13 +678,22 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
                 return true;
             }
 
-            SelectCell(clicked);
+            SelectCell(clicked, extend);
             Session?.SetFocus(this);
+            _isSelectingCells = true;
+            _lastSelectionPointer = input.Position;
+            Session?.CaptureInput(this);
             return true;
         }
 
         if (input.MouseButtonTransition == MouseButtonTransition.Up)
         {
+            if (_isSelectingCells)
+            {
+                UpdateCellSelectionDrag(input.Position);
+                EndCellSelectionDrag();
+                return true;
+            }
             double localX = input.Position.X - Bounds.X;
             double localY = input.Position.Y - Bounds.Y;
 
@@ -573,6 +702,29 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         }
 
         return false;
+    }
+
+    private void UpdateCellSelectionDrag(BPoint pointer)
+    {
+        // Scrolling can move the grid during selection; a stationary release
+        // must not reinterpret the same screen position as another cell.
+        if (pointer == _lastSelectionPointer)
+            return;
+        _lastSelectionPointer = pointer;
+        int row = GetRowAtOffset(Math.Clamp(pointer.Y - Bounds.Y, 0, TotalHeight - 0.001));
+        int column = GetColumnAtOffset(Math.Clamp(pointer.X - Bounds.X, 0, TotalWidth - 0.001));
+        var position = new CellPosition(row, column);
+        if (SelectedCell != position)
+        {
+            _hasClicked = false;
+            SelectCell(position, extend: true);
+        }
+    }
+
+    private void EndCellSelectionDrag()
+    {
+        _isSelectingCells = false;
+        Session?.ReleaseInputCapture(this);
     }
 
     private bool HandleKeyboardKey(UiInputEvent input)
@@ -609,9 +761,12 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
 
         if (IsKey(input, 0x2E, "Delete"))
         {
-            if (SelectedCell is { } selected)
+            if (SelectedCell is not null)
             {
-                ClearCell(selected.Row, selected.Column);
+                for (int row = 0; row < Sheet.RowCount; row++)
+                    for (int column = 0; column < Sheet.ColumnCount; column++)
+                        if (IsCellSelected(row, column))
+                            ClearCell(row, column);
                 return true;
             }
             return false;
@@ -722,7 +877,7 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
             var state = UiSemanticState.Visible | UiSemanticState.Enabled;
             if (!_grid.IsEditingEnabled)
                 state |= UiSemanticState.ReadOnly;
-            if (_grid.SelectedCell is { } pos && pos.Row == _row && pos.Column == _column)
+            if (_grid.IsCellSelected(_row, _column))
                 state |= UiSemanticState.Selected;
 
             return base.GetSemanticNodeCore() with

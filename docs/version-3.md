@@ -1,5 +1,8 @@
 # Version 3 — Very simple cell annotations
 
+This record describes the original Version 3 milestone. Later enhancements add
+row and column selection through the headers; see [current selection behavior](../README.md#features).
+
 The Windows application is runnable with coordinate annotations and active cell
 address display for sheets up to 100 × 100 cells. It provides frozen column headers
 (A–CV), frozen row headers (1–100), active-cell address tracking in the status

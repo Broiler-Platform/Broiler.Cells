@@ -163,7 +163,7 @@ public sealed class CellControlTests
     }
 
     [Fact]
-    public void HeaderClicksDoNotSelectRowsColumnsOrCells()
+    public void HeaderClicksSelectWholeColumnsAndRowsWhileCornerPreservesSelection()
     {
         var sheet = new SheetModel(10, 10, (r, c) => $"Val{r}{c}");
         using var fixture = new Fixture(sheet, width: 600, height: 400);
@@ -180,8 +180,8 @@ public sealed class CellControlTests
         fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(colHeaderX, colHeaderY), BMouseButtons.Left, BMouseButtons.Left)));
         fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(colHeaderX, colHeaderY), BMouseButtons.None, BMouseButtons.Left)));
 
-        // Selection must not have changed to column 2 or any other cell
-        Assert.Equal(new CellPosition(1, 1), fixture.Control.SelectedCell);
+        Assert.Equal(new CellPosition(1, 2), fixture.Control.SelectedCell);
+        Assert.Equal(new[] { 2 }, fixture.Control.SelectedColumns);
 
         // Click on Row Header area (e.g., row 5 header at X = RowHeaderWidth / 2, Y = ColumnHeaderHeight + 4.5 * CellHeight)
         double rowHeaderX = CellControl.RowHeaderWidth / 2;
@@ -189,14 +189,16 @@ public sealed class CellControlTests
         fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(rowHeaderX, rowHeaderY), BMouseButtons.Left, BMouseButtons.Left)));
         fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(rowHeaderX, rowHeaderY), BMouseButtons.None, BMouseButtons.Left)));
 
-        // Selection remains unchanged
-        Assert.Equal(new CellPosition(1, 1), fixture.Control.SelectedCell);
+        Assert.Equal(new CellPosition(4, 2), fixture.Control.SelectedCell);
+        Assert.Equal(new[] { 4 }, fixture.Control.SelectedRows);
+        Assert.Empty(fixture.Control.SelectedColumns);
 
         // Click on Corner Header (X = 10, Y = 10)
         fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(10, 10), BMouseButtons.Left, BMouseButtons.Left)));
         fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(10, 10), BMouseButtons.None, BMouseButtons.Left)));
 
-        Assert.Equal(new CellPosition(1, 1), fixture.Control.SelectedCell);
+        Assert.Equal(new CellPosition(4, 2), fixture.Control.SelectedCell);
+        Assert.Equal(new[] { 4 }, fixture.Control.SelectedRows);
     }
 
     [Fact]

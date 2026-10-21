@@ -47,6 +47,15 @@ The roadmap ends at Version 3. Each version builds on the previous one.
   - Double-click a row divider to reset its height to default (28px).
   - Programmatic control via `SetColumnWidth`, `SetRowHeight`, `AutoFitColumn`, `ResetColumnWidth`, and `ResetRowHeight` with `ColumnResized` and `RowResized` events.
 
+- **Row and Column Selection**:
+  - Click a row number or column letter to select the whole row or column.
+  - Shift-click to select a range from the last anchor; Ctrl-click to add or remove individual rows or columns. Ctrl+Shift-click adds a range.
+  - Drag across headers to select a range. Ctrl-drag preserves the existing selection.
+  - Drag across data cells to select a rectangle. Shift-click or Shift-drag extends from the original cell anchor; dragging without Shift starts a new selection.
+  - Selected headers and cells are highlighted. Delete clears all selected cells; typing or F2 edits the active cell.
+  - Clicking a cell without Shift or using an arrow key returns to single-cell selection. Switching between row and column headers starts a selection on the new axis.
+  - `SelectRow`, `SelectColumn`, `SelectedRows`, `SelectedColumns`, `IsCellSelected`, and `SelectionChanged` expose selection through the reusable control. Indices are zero-based; selection is disabled in read-only mode.
+
 The shared control provides display, selection, in-place editing, coordinate labels,
 and resizable columns/rows so Broiler Writer can embed a small table or sheet with or without headers.
 Writer integration is a design consideration, not another release or an
@@ -70,7 +79,7 @@ Page keys to scroll.
 Click a cell to select it. Navigate with arrow keys. Double-click or press F2 to
 edit the cell in place. Typing while a cell is selected replaces its contents.
 Press Enter to commit an edit, Escape to cancel, or Delete to clear the selected
-cell.
+cells.
 
 The sample is defined in `CellsWindow.cs`; sheets up to 100 × 100 can be supplied
 through `new SheetModel(rows, columns, initialValue)`.

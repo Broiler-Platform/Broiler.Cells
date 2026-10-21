@@ -8,7 +8,9 @@ using Broiler.Graphics.Windows;
 using Broiler.Hosting.Windows;
 using Broiler.Hosting.Windows.Accessibility;
 using Broiler.Hosting.Windows.Input;
+using Broiler.Input;
 using Broiler.Input.Keyboard;
+using Broiler.Input.Mouse;
 using Broiler.UI;
 using Broiler.UI.Standard;
 using Broiler.UI.Window;
@@ -23,6 +25,9 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost
 
     [DllImport("user32.dll", ExactSpelling = true)]
     private static extern nint SetCursor(nint hCursor);
+
+    [DllImport("user32.dll", ExactSpelling = true)]
+    private static extern short GetKeyState(int virtualKey);
 
     private nint _activeCursorHandle;
     private readonly UiSession _session;
@@ -115,13 +120,35 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost
     }
 
     protected override void OnResized(BSize clientSize, double dpiScale) => Invalidate();
-    protected override void OnPointerDown(BPointerEventArgs e) => Dispatch(_input.FromPointerButton(e));
-    protected override void OnPointerUp(BPointerEventArgs e) => Dispatch(_input.FromPointerButton(e));
+    protected override void OnPointerDown(BPointerEventArgs e) => DispatchPointerButton(e);
+    protected override void OnPointerUp(BPointerEventArgs e) => DispatchPointerButton(e);
     protected override void OnPointerMove(BPointerEventArgs e) => Dispatch(_input.FromPointerMove(e));
     protected override void OnMouseWheel(BMouseWheelEventArgs e) => Dispatch(_input.FromMouseWheel(e));
     protected override void OnTextInput(BTextInputEventArgs e) => Dispatch(_input.FromText(e));
     protected override void OnKeyDown(BKeyEventArgs e) => Dispatch(_input.FromKey(e, KeyboardKeyTransition.Down));
     protected override void OnKeyUp(BKeyEventArgs e) => Dispatch(_input.FromKey(e, KeyboardKeyTransition.Up));
+
+    private void DispatchPointerButton(BPointerEventArgs e)
+    {
+        // The legacy graphics adapter drops pointer modifiers. Read the state of
+        // the current Windows message so Ctrl/Shift header selection reaches the grid.
+        var input = _input.FromPointerButton(e);
+        InputModifiers modifiers = InputModifiers.None;
+        if (GetKeyState(0x11) < 0)
+            modifiers |= InputModifiers.Control;
+        if (GetKeyState(0x10) < 0)
+            modifiers |= InputModifiers.Shift;
+        if (GetKeyState(0x12) < 0)
+            modifiers |= InputModifiers.Alt;
+
+        MouseButtons buttons = MouseButtons.None;
+        if (e.Buttons.HasFlag(BMouseButtons.Left)) buttons |= MouseButtons.Left;
+        if (e.Buttons.HasFlag(BMouseButtons.Right)) buttons |= MouseButtons.Right;
+        if (e.Buttons.HasFlag(BMouseButtons.Middle)) buttons |= MouseButtons.Middle;
+        Dispatch(UiInputEvent.FromMouseButton(new MouseButtonEvent(input.Header,
+            InputPoint.ClientDeviceIndependentPixels(e.Position.X, e.Position.Y), buttons,
+            input.MouseButton, input.MouseButtonTransition!.Value, InputEventSource.Synthetic, modifiers)));
+    }
 
     private void Dispatch(UiInputEvent input)
     {

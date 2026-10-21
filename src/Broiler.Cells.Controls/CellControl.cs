@@ -2,6 +2,7 @@ using Broiler.Cells.Core;
 using Broiler.Graphics.Color;
 using Broiler.Graphics.Geometry;
 using Broiler.Graphics.Text;
+using Broiler.Input.Keyboard;
 using Broiler.Input.Mouse;
 using Broiler.UI;
 using Broiler.UI.ScrollView.Standard;
@@ -43,6 +44,12 @@ public sealed class CellControl : UiElement, IStandardThemedControl
         _corner = new CornerHeaderElement(this);
         _columnHeaders = new ColumnHeadersElement(this);
         _rowHeaders = new RowHeadersElement(this);
+        _grid.SelectionChanged += (_, _) =>
+        {
+            _columnHeaders.InvalidateRender();
+            _rowHeaders.InvalidateRender();
+            SelectionChanged?.Invoke(this, EventArgs.Empty);
+        };
 
         _grid.ColumnResized += (_, args) =>
         {
@@ -120,6 +127,9 @@ public sealed class CellControl : UiElement, IStandardThemedControl
 
     public CellPosition? SelectedCell => _grid.SelectedCell;
     public string? SelectedAddress => _grid.SelectedCell?.ToAddress();
+    public IReadOnlyList<int> SelectedRows => _grid.SelectedRows;
+    public IReadOnlyList<int> SelectedColumns => _grid.SelectedColumns;
+    public bool IsCellSelected(int row, int column) => _grid.IsCellSelected(row, column);
     public bool IsEditing => _grid.IsEditing;
 
     public double GetColumnWidth(int column) => _grid.GetColumnWidth(column);
@@ -144,6 +154,7 @@ public sealed class CellControl : UiElement, IStandardThemedControl
     public BFontStyle Font => _font;
 
     public event EventHandler<CellPosition?>? SelectedCellChanged;
+    public event EventHandler? SelectionChanged;
     public event EventHandler<CellCommittedEventArgs>? CellCommitted;
     public event EventHandler<ColumnResizedEventArgs>? ColumnResized;
     public event EventHandler<RowResizedEventArgs>? RowResized;
@@ -154,6 +165,9 @@ public sealed class CellControl : UiElement, IStandardThemedControl
     }
 
     public void SelectCell(CellPosition position) => _grid.SelectCell(position);
+    public void SelectCell(CellPosition position, bool extend) => _grid.SelectCell(position, extend);
+    public void SelectRow(int row, bool extend = false, bool toggle = false) => _grid.SelectRow(row, extend, toggle);
+    public void SelectColumn(int column, bool extend = false, bool toggle = false) => _grid.SelectColumn(column, extend, toggle);
     public void StartEditing(string initialText) => _grid.StartEditing(initialText);
     public void CommitEdit() => _grid.CommitEdit();
     public void CancelEdit() => _grid.CancelEdit();
@@ -249,10 +263,84 @@ public sealed class CellControl : UiElement, IStandardThemedControl
         };
     }
 
+    private sealed class HeaderSelectionGesture(CellControl control, UiElement owner, bool column)
+    {
+        private bool _active;
+        private int _lastIndex;
+        private BPoint _lastPosition;
+        private SheetModel? _sheet;
+        private IReadOnlyList<int> _baseline = [];
+
+        private int HitTest(BPoint point, bool clamp)
+        {
+            double offset = column
+                ? point.X - owner.Bounds.X + control.ScrollView.HorizontalOffset
+                : point.Y - owner.Bounds.Y + control.ScrollView.VerticalOffset;
+            double length = column ? control.Grid.TotalWidth : control.Grid.TotalHeight;
+            if (clamp)
+                offset = Math.Clamp(offset, 0, length - 0.001);
+            return column ? control.Grid.GetColumnAtOffset(offset) : control.Grid.GetRowAtOffset(offset);
+        }
+
+        public bool Begin(UiInputEvent input)
+        {
+            if (!control.IsEditingEnabled)
+                return false;
+            int index = HitTest(input.Position, false);
+            if (index < 0)
+                return false;
+            bool extend = input.KeyModifiers.HasFlag(KeyboardModifierState.Shift);
+            bool toggle = input.KeyModifiers.HasFlag(KeyboardModifierState.Control);
+            _baseline = toggle ? (column ? control.SelectedColumns : control.SelectedRows) : [];
+            if (column)
+                control.SelectColumn(index, extend, toggle);
+            else
+                control.SelectRow(index, extend, toggle);
+            _lastIndex = index;
+            _lastPosition = input.Position;
+            _sheet = control.Sheet;
+            _active = true;
+            owner.Session?.SetFocus(control.Grid);
+            owner.Session?.CaptureInput(owner);
+            control.SetCursor(UiCursorShape.Arrow);
+            return true;
+        }
+
+        public bool Handle(UiInputEvent input)
+        {
+            if (!_active)
+                return false;
+            if (!control.IsEditingEnabled || _sheet != control.Sheet || !control.AreHeadersVisible)
+            {
+                _active = false;
+                owner.Session?.ReleaseInputCapture(owner);
+                return false;
+            }
+            bool released = input.Kind == UiInputEventKind.PointerButton &&
+                input.MouseButton == MouseButton.Left && input.MouseButtonTransition == MouseButtonTransition.Up;
+            if (input.Kind != UiInputEventKind.PointerMove && !released)
+                return false;
+            int index = HitTest(input.Position, true);
+            if (input.Position != _lastPosition && index != _lastIndex)
+            {
+                control.Grid.ExtendHeaderSelection(index, column, _baseline);
+                _lastIndex = index;
+            }
+            _lastPosition = input.Position;
+            if (released)
+            {
+                _active = false;
+                owner.Session?.ReleaseInputCapture(owner);
+            }
+            return true;
+        }
+    }
+
     private sealed class ColumnHeadersElement : UiElement
     {
         private const double DividerHitSlop = 4.0;
         private readonly CellControl _control;
+        private readonly HeaderSelectionGesture _selection;
 
         private bool _isDragging;
         private int _dragColumnIndex = -1;
@@ -268,6 +356,7 @@ public sealed class CellControl : UiElement, IStandardThemedControl
         public ColumnHeadersElement(CellControl control)
         {
             _control = control;
+            _selection = new HeaderSelectionGesture(control, this, true);
             AccessibleName = "Column headers";
         }
 
@@ -295,6 +384,8 @@ public sealed class CellControl : UiElement, IStandardThemedControl
 
         protected override bool OnInput(UiInputEvent input)
         {
+            if (_selection.Handle(input))
+                return true;
             return input.Kind switch
             {
                 UiInputEventKind.PointerButton => HandlePointerButton(input),
@@ -336,6 +427,8 @@ public sealed class CellControl : UiElement, IStandardThemedControl
                     InvalidateRender();
                     return true;
                 }
+                _hasClicked = false;
+                return _selection.Begin(input);
             }
             else if (input.MouseButtonTransition == MouseButtonTransition.Up)
             {
@@ -426,6 +519,9 @@ public sealed class CellControl : UiElement, IStandardThemedControl
                 if (colRight <= Bounds.Left || colLeft >= Bounds.Right)
                     continue;
 
+                if (_control.Grid.IsColumnSelected(col))
+                    list.FillRect(new BRect(colLeft + 1, Bounds.Y, colWidth - 1, Bounds.Height - 1), _control.Theme.AccentSoft);
+
                 bool isHighlighted = _hoveredDividerIndex == col || (_isDragging && _dragColumnIndex == col);
                 BColor dividerColor = isHighlighted ? _control.Theme.FocusRing : _control.Theme.Border;
                 double dividerThickness = isHighlighted ? 2 : 1;
@@ -436,7 +532,7 @@ public sealed class CellControl : UiElement, IStandardThemedControl
                 double labelX = colLeft + Math.Max(0, (colWidth - labelWidth) / 2);
 
                 list.PushClip(new BRect(colLeft + 1, Bounds.Y, Math.Max(0, colWidth - 1), Bounds.Height));
-                list.DrawText(new BTextRun(label, _control.Font, _control.Theme.TextMuted), new BPoint(labelX, Bounds.Y + textY));
+                list.DrawText(new BTextRun(label, _control.Font, _control.Grid.IsColumnSelected(col) ? _control.Theme.SelectionText : _control.Theme.TextMuted), new BPoint(labelX, Bounds.Y + textY));
                 list.PopClip();
             }
 
@@ -454,6 +550,7 @@ public sealed class CellControl : UiElement, IStandardThemedControl
     {
         private const double DividerHitSlop = 4.0;
         private readonly CellControl _control;
+        private readonly HeaderSelectionGesture _selection;
 
         private bool _isDragging;
         private int _dragRowIndex = -1;
@@ -469,6 +566,7 @@ public sealed class CellControl : UiElement, IStandardThemedControl
         public RowHeadersElement(CellControl control)
         {
             _control = control;
+            _selection = new HeaderSelectionGesture(control, this, false);
             AccessibleName = "Row headers";
         }
 
@@ -496,6 +594,8 @@ public sealed class CellControl : UiElement, IStandardThemedControl
 
         protected override bool OnInput(UiInputEvent input)
         {
+            if (_selection.Handle(input))
+                return true;
             return input.Kind switch
             {
                 UiInputEventKind.PointerButton => HandlePointerButton(input),
@@ -537,6 +637,8 @@ public sealed class CellControl : UiElement, IStandardThemedControl
                     InvalidateRender();
                     return true;
                 }
+                _hasClicked = false;
+                return _selection.Begin(input);
             }
             else if (input.MouseButtonTransition == MouseButtonTransition.Up)
             {
@@ -626,6 +728,9 @@ public sealed class CellControl : UiElement, IStandardThemedControl
                 if (rowBottom <= Bounds.Top || rowTop >= Bounds.Bottom)
                     continue;
 
+                if (_control.Grid.IsRowSelected(row))
+                    list.FillRect(new BRect(Bounds.X, rowTop + 1, Bounds.Width - 1, rowHeight - 1), _control.Theme.AccentSoft);
+
                 bool isHighlighted = _hoveredDividerIndex == row || (_isDragging && _dragRowIndex == row);
                 BColor dividerColor = isHighlighted ? _control.Theme.FocusRing : _control.Theme.Border;
                 double dividerThickness = isHighlighted ? 2 : 1;
@@ -638,7 +743,7 @@ public sealed class CellControl : UiElement, IStandardThemedControl
                 double labelY = rowTop + textYOffset;
 
                 list.PushClip(new BRect(Bounds.X, rowTop + 1, Bounds.Width - 1, Math.Max(0, rowHeight - 1)));
-                list.DrawText(new BTextRun(label, _control.Font, _control.Theme.TextMuted),
+                list.DrawText(new BTextRun(label, _control.Font, _control.Grid.IsRowSelected(row) ? _control.Theme.SelectionText : _control.Theme.TextMuted),
                     new BPoint(labelX, labelY));
                 list.PopClip();
             }
