@@ -1,10 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Broiler.Documents\src\Broiler.Documents.Csv\Broiler.Documents.Csv.csproj" Condition="Exists('..\..\..\Broiler.Documents\src\Broiler.Documents.Csv\Broiler.Documents.Csv.csproj')" />
-    <ProjectReference Include="..\..\..\Broiler.Documents\src\Broiler.Documents\Broiler.Documents.csproj" Condition="Exists('..\..\..\Broiler.Documents\src\Broiler.Documents\Broiler.Documents.csproj')" />
-    <ProjectReference Include="..\..\..\Broiler.Documents\src\Broiler.Documents.Model\Broiler.Documents.Model.csproj" Condition="Exists('..\..\..\Broiler.Documents\src\Broiler.Documents.Model\Broiler.Documents.Model.csproj')" />
-    <PackageReference Include="Broiler.Documents" Condition="!Exists('..\..\..\Broiler.Documents\src\Broiler.Documents\Broiler.Documents.csproj')" />
-    <PackageReference Include="Broiler.Documents.Csv" Condition="!Exists('..\..\..\Broiler.Documents\src\Broiler.Documents.Csv\Broiler.Documents.Csv.csproj')" />
-    <PackageReference Include="Broiler.Documents.Model" Condition="!Exists('..\..\..\Broiler.Documents\src\Broiler.Documents.Model\Broiler.Documents.Model.csproj')" />
+    <PackageReference Include="Broiler.Documents" />
+    <PackageReference Include="Broiler.Documents.Csv" />
+    <PackageReference Include="Broiler.Documents.Model" />
   </ItemGroup>
 </Project>

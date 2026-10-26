@@ -5,7 +5,7 @@
   <ItemGroup>
     <PackageVersion Include="Broiler.Documents" Version="0.1.0-preview.28" />
     <PackageVersion Include="Broiler.Documents.Model" Version="0.1.0-preview.28" />
-    <PackageVersion Include="Broiler.Documents.Csv" Version="0.1.0-preview.1" />
+    <PackageVersion Include="Broiler.Documents.Csv" Version="0.1.0-preview.28" />
     <PackageVersion Include="Broiler.Graphics" Version="0.1.0-preview.14" />
     <PackageVersion Include="Broiler.Graphics.Windows" Version="0.1.0-preview.14" />
     <PackageVersion Include="Broiler.Graphics.Linux" Version="0.1.0-preview.14" />
