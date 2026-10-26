@@ -7,7 +7,7 @@
     <ProjectReference Include="../../src/Broiler.Cells.Controls/Broiler.Cells.Controls.csproj" />
     <ProjectReference Include="../../src/Broiler.Cells.Windows/Broiler.Cells.Windows.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <PackageReference Include="xunit.v3" />
   </ItemGroup>
 </Project>

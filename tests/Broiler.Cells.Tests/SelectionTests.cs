@@ -73,7 +73,7 @@ public sealed class SelectionTests
         f.Down(f.Cell(4, 3));
         f.Up(f.Cell(4, 3));
         Assert.False(f.Control.IsEditing);
-        Assert.Single(f.Control.Grid.GetSemanticNode().Children.Where(n => n.State.HasFlag(UiSemanticState.Selected)));
+        Assert.Single(f.Control.Grid.GetSemanticNode().Children, n => n.State.HasFlag(UiSemanticState.Selected));
     }
 
     [Fact]
@@ -239,7 +239,7 @@ public sealed class SelectionTests
         Assert.Equal(5, nodes.Count(n => n.State.HasFlag(UiSemanticState.Selected)));
         f.Control.SelectCell(f.Control.SelectedCell!.Value);
         Assert.Empty(f.Control.SelectedRows);
-        Assert.Single(f.Control.Grid.GetSemanticNode().Children.Where(n => n.State.HasFlag(UiSemanticState.Selected)));
+        Assert.Single(f.Control.Grid.GetSemanticNode().Children, n => n.State.HasFlag(UiSemanticState.Selected));
     }
 
     [Fact]

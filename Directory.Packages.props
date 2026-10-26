@@ -3,21 +3,24 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Broiler.UI.Standard" Version="0.1.0-preview.20" />
-    <PackageVersion Include="Broiler.UI.ScrollView.Standard" Version="0.1.0-preview.20" />
-    <PackageVersion Include="Broiler.UI.Label.Standard" Version="0.1.0-preview.20" />
-    <PackageVersion Include="Broiler.UI.Edit.Standard" Version="0.1.0-preview.20" />
-    <PackageVersion Include="Broiler.UI.Menu.Standard" Version="0.1.0-preview.20" />
-    <PackageVersion Include="Broiler.UI.FileDialog.Standard" Version="0.1.0-preview.20" />
-    <PackageVersion Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.20" />
-    <PackageVersion Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.20" />
-    <PackageVersion Include="Broiler.UI.Button.Standard" Version="0.1.0-preview.20" />
-    <PackageVersion Include="Broiler.UI.Window.Standard" Version="0.1.0-preview.20" />
-    <PackageVersion Include="Broiler.Graphics.Windows" Version="0.1.0-preview.12" />
-    <PackageVersion Include="Broiler.Hosting.Windows" Version="0.1.0-preview.9" />
+    <PackageVersion Include="Broiler.Documents" Version="0.1.0-preview.28" />
+    <PackageVersion Include="Broiler.Documents.Model" Version="0.1.0-preview.28" />
+    <PackageVersion Include="Broiler.UI.Standard" Version="0.1.0-preview.23" />
+    <PackageVersion Include="Broiler.UI.ScrollView.Standard" Version="0.1.0-preview.23" />
+    <PackageVersion Include="Broiler.UI.Label.Standard" Version="0.1.0-preview.23" />
+    <PackageVersion Include="Broiler.UI.Edit.Standard" Version="0.1.0-preview.23" />
+    <PackageVersion Include="Broiler.UI.Menu.Standard" Version="0.1.0-preview.23" />
+    <PackageVersion Include="Broiler.UI.FileDialog.Standard" Version="0.1.0-preview.23" />
+    <PackageVersion Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.23" />
+    <PackageVersion Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.23" />
+    <PackageVersion Include="Broiler.UI.Button.Standard" Version="0.1.0-preview.23" />
+    <PackageVersion Include="Broiler.UI.Window.Standard" Version="0.1.0-preview.23" />
+    <PackageVersion Include="Broiler.Graphics.Windows" Version="0.1.0-preview.14" />
+    <PackageVersion Include="Broiler.Hosting.Windows" Version="0.1.0-preview.10" />
     <PackageVersion Include="Broiler.Documents.Csv" Version="0.1.0-preview.1" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageVersion Include="xunit" Version="2.5.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 </Project>
