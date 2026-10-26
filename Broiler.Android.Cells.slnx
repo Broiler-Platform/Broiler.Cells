@@ -1,0 +1,16 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+  </Configurations>
+  <Folder Name="/Entry points/">
+    <Project Path="src/Broiler.Cells.Android/Broiler.Cells.Android.csproj">
+      <Deploy Solution="Debug|*" />
+    </Project>
+  </Folder>
+  <Folder Name="/Dependencies/src/">
+    <Project Path="src/Broiler.Cells.Core/Broiler.Cells.Core.csproj" />
+    <Project Path="src/Broiler.Cells.Controls/Broiler.Cells.Controls.csproj" />
+    <Project Path="src/Broiler.Cells.UI/Broiler.Cells.UI.csproj" />
+  </Folder>
+</Solution>

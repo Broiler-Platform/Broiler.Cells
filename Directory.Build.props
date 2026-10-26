@@ -4,7 +4,27 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Version>0.1.0-preview.1</Version>
+    <BroilerCellsVersion Condition="'$(BroilerCellsVersion)' == ''">0.1.0-preview.1</BroilerCellsVersion>
+    <Version>$(BroilerCellsVersion)</Version>
     <IsPackable>false</IsPackable>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Debug-Windows'">Debug</BroilerBaseConfiguration>
+    <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Release-Linux' Or '$(Configuration)' == 'Release-Windows'">Release</BroilerBaseConfiguration>
+    <BroilerTargetOperatingSystem Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Release-Linux'">Linux</BroilerTargetOperatingSystem>
+    <BroilerTargetOperatingSystem Condition="'$(Configuration)' == 'Debug-Windows' Or '$(Configuration)' == 'Release-Windows'">Windows</BroilerTargetOperatingSystem>
+
+    <DebugSymbols Condition="'$(BroilerBaseConfiguration)' == 'Debug'">true</DebugSymbols>
+    <DebugType Condition="'$(BroilerBaseConfiguration)' == 'Debug'">portable</DebugType>
+    <Optimize Condition="'$(BroilerBaseConfiguration)' == 'Debug'">false</Optimize>
+    <DefineConstants Condition="'$(BroilerBaseConfiguration)' == 'Debug'">$(DefineConstants);DEBUG</DefineConstants>
+    <DebugType Condition="'$(BroilerBaseConfiguration)' == 'Release'">portable</DebugType>
+    <Optimize Condition="'$(BroilerBaseConfiguration)' == 'Release'">true</Optimize>
+    <DefineConstants Condition="'$(BroilerBaseConfiguration)' == 'Release'">$(DefineConstants);RELEASE</DefineConstants>
+
+    <DefineConstants Condition="'$(BroilerTargetOperatingSystem)' == 'Linux'">$(DefineConstants);LINUX</DefineConstants>
+    <DefineConstants Condition="'$(BroilerTargetOperatingSystem)' == 'Windows'">$(DefineConstants);WINDOWS</DefineConstants>
+
+    <NoWarn>$(NoWarn);CS8602;CS8618;CS8625</NoWarn>
   </PropertyGroup>
 </Project>

@@ -1,8 +1,10 @@
 using System.Runtime.InteropServices;
 using Broiler.Cells.Core;
 using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Imaging;
 using Broiler.Graphics.Rendering;
 using Broiler.Graphics.RenderList;
+using Broiler.Graphics.Resources;
 using Broiler.Graphics.Windowing;
 using Broiler.Graphics.Windows;
 using Broiler.Hosting.Windows;
@@ -18,7 +20,7 @@ using Broiler.UI.Window.Standard;
 
 namespace Broiler.Cells.Windows;
 
-internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost
+internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiImageHost
 {
     [DllImport("user32.dll", ExactSpelling = true)]
     private static extern nint LoadCursorW(nint hInstance, nint lpCursorName);
@@ -74,6 +76,7 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost
         };
         _rootWindow.AddChild(_view);
         _view.OwnerWindow = _rootWindow;
+        _view.ViewportProvider = () => ClientSize;
 
         _view.ExitRequested += (_, _) => Close();
         _view.TitleChanged += (_, newTitle) => SetTitle(newTitle);
@@ -88,6 +91,36 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost
     BRenderList IUiHost.CreateRenderList(int capacity) => new(capacity);
     void IUiHost.Invalidate(UiInvalidation invalidation) => Invalidate();
     void IUiHost.Present(BRenderList renderList) { } // The native window presents BuildRenderList's result.
+
+    BImageHandle IUiImageHost.CreateImage(ReadOnlySpan<byte> encodedImage)
+    {
+        try
+        {
+            return Renderer?.CreateImage(encodedImage) ?? BImageHandle.Invalid;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return BImageHandle.Invalid;
+        }
+    }
+
+    BImageHandle IUiImageHost.CreateImage(BPixelBuffer pixels)
+    {
+        try
+        {
+            return Renderer?.CreateImage(pixels) ?? BImageHandle.Invalid;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return BImageHandle.Invalid;
+        }
+    }
+
+    void IUiImageHost.ReleaseImage(BImageHandle image)
+    {
+        if (image.IsValid)
+            Renderer?.ReleaseImage(image);
+    }
 
     protected override void OnCreated()
     {

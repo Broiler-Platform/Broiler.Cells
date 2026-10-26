@@ -4,5 +4,6 @@
     <PackageReference Include="Broiler.UI.Standard" />
     <PackageReference Include="Broiler.UI.ScrollView.Standard" />
     <PackageReference Include="Broiler.UI.Edit.Standard" />
+    <PackageReference Include="Broiler.UI.Label.Standard" />
   </ItemGroup>
 </Project>

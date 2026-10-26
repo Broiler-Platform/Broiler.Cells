@@ -489,6 +489,31 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         InvalidateRender();
     }
 
+    public void SetCellValue(CellPosition position, string value)
+    {
+        int row = position.Row;
+        int col = position.Column;
+        ArgumentOutOfRangeException.ThrowIfNegative(row);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(row, Sheet.RowCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(col);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(col, Sheet.ColumnCount);
+
+        value ??= string.Empty;
+        string oldValue = Sheet[row, col];
+        if (oldValue == value)
+            return;
+
+        if (_isEditing && _editingRow == row && _editingCol == col)
+        {
+            _editor.Text = value;
+        }
+
+        Sheet[row, col] = value;
+        _semanticCells[row, col].UpdateValue(value);
+        CellCommitted?.Invoke(this, new CellCommittedEventArgs(position, oldValue, value));
+        InvalidateRender();
+    }
+
     public void CancelEdit()
     {
         if (!_isEditing)

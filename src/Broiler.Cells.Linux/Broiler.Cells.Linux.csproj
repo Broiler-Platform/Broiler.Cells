@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Broiler.Cells</RootNamespace>
+    <AssemblyName>Broiler.Cells.Linux</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Configurations>Debug;Release;Debug-Linux;Release-Linux</Configurations>
+    <RuntimeIdentifier Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Release-Linux'">linux-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Broiler.Graphics" />
+    <PackageReference Include="Broiler.Graphics.Linux" />
+    <PackageReference Include="Broiler.Graphics.Linux.OpenGL" />
+    <PackageReference Include="Broiler.Hosting.Linux" />
+    <PackageReference Include="Broiler.Input.Keyboard.Linux" />
+    <PackageReference Include="Broiler.Input.Linux" />
+    <PackageReference Include="Broiler.Input.Mouse.Linux" />
+    <PackageReference Include="Broiler.Media.Image.Managed" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Broiler.Cells.Core\Broiler.Cells.Core.csproj" />
+    <ProjectReference Include="..\Broiler.Cells.Controls\Broiler.Cells.Controls.csproj" />
+    <ProjectReference Include="..\Broiler.Cells.UI\Broiler.Cells.UI.csproj" />
+  </ItemGroup>
+
+</Project>

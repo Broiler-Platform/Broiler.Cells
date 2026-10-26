@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/Broiler.Cells.Controls/Broiler.Cells.Controls.csproj" />
+  <Project Path="src/Broiler.Cells.Core/Broiler.Cells.Core.csproj" />
+  <Project Path="src/Broiler.Cells.UI/Broiler.Cells.UI.csproj" />
+  <Project Path="src/Broiler.Cells.WebAssembly/Broiler.Cells.WebAssembly.csproj" />
+</Solution>

@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The Windows head targets net10.0-windows and renders through Direct2D,
+          # so it only builds on Windows.
+          - name: Windows head
+            os: windows-latest
+            solution: Broiler.Windows.Cells.slnx
+            test: false
+          - name: Linux head
+            os: ubuntu-latest
+            solution: Broiler.Linux.Cells.slnx
+            test: false
+          - name: Tests (Linux)
+            os: ubuntu-latest
+            solution: Broiler.Cells.Tests.slnx
+            test: true
+          - name: Tests (Windows)
+            os: windows-latest
+            solution: Broiler.Cells.Tests.slnx
+            test: true
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Build
+        run: dotnet build ${{ matrix.solution }} -c Release
+
+      - name: Test
+        if: matrix.test
+        run: dotnet test ${{ matrix.solution }} -c Release --no-build
+
+  android:
+    name: Android head
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      # net10.0-android needs the workload for the Mono runtime packs; without it
+      # the restore fails outright rather than degrading.
+      - name: Install the Android workload
+        run: dotnet workload install android
+
+      - name: Build
+        run: dotnet build Broiler.Android.Cells.slnx -c Release
+
+  webassembly:
+    name: WebAssembly head
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Install the wasm-tools workload
+        run: dotnet workload install wasm-tools
+
+      - name: Build
+        run: dotnet build Broiler.WebAssembly.Cells.slnx -c Release
+
+      - name: Publish
+        run: dotnet publish src/Broiler.Cells.WebAssembly/Broiler.Cells.WebAssembly.csproj -c Release
+
+  publish:
+    name: Publish ${{ matrix.rid }} (NativeAOT)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            project: src/Broiler.Cells.Windows/Broiler.Cells.Windows.csproj
+            configuration: Release-Windows
+          - os: ubuntu-latest
+            rid: linux-x64
+            project: src/Broiler.Cells.Linux/Broiler.Cells.Linux.csproj
+            configuration: Release-Linux
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Install the NativeAOT prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Publish
+        run: dotnet publish ${{ matrix.project }} -c ${{ matrix.configuration }} -p:PublishAot=true

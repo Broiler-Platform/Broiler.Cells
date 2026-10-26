@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Entry points/">
+    <Project Path="src/Broiler.Cells.Windows/Broiler.Cells.Windows.csproj" />
+  </Folder>
+  <Folder Name="/Dependencies/src/">
+    <Project Path="src/Broiler.Cells.Core/Broiler.Cells.Core.csproj" />
+    <Project Path="src/Broiler.Cells.Controls/Broiler.Cells.Controls.csproj" />
+    <Project Path="src/Broiler.Cells.UI/Broiler.Cells.UI.csproj" />
+  </Folder>
+</Solution>

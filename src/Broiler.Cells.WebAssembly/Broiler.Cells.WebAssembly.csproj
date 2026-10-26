@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Broiler.Cells.WebAssembly</RootNamespace>
+    <AssemblyName>Broiler.Cells.WebAssembly</AssemblyName>
+    <PublishTrimmed>true</PublishTrimmed>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Broiler.Graphics.WebAssembly" />
+    <PackageReference Include="Broiler.Media.Image.Managed" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Broiler.Cells.Core\Broiler.Cells.Core.csproj" />
+    <ProjectReference Include="..\Broiler.Cells.Controls\Broiler.Cells.Controls.csproj" />
+    <ProjectReference Include="..\Broiler.Cells.UI\Broiler.Cells.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <StaticWebAssetFingerprintPattern Include="MainJs" Pattern="main.js" Expression="#[.{fingerprint}]!" />
+  </ItemGroup>
+
+</Project>

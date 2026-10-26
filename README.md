@@ -35,6 +35,27 @@ The roadmap ends at Version 3. Each version builds on the previous one.
     - **Exit** (`Alt+F4`): Closes the application.
   - **Help**:
     - **About**: Displays standard Broiler About dialog with product and component version metadata.
+
+- **Toolbar (like in Broiler Writer)**:
+  - Standard toolbar with vector-drawn resolution-independent icons.
+  - File actions: **New**, **Open**, **Save**, **Save as**.
+  - Editing actions: **Cut** (`Ctrl+X`), **Copy** (`Ctrl+C`), **Paste** (`Ctrl+V`), **Clear** (`Del`).
+  - Layout actions: **AutoFit** to automatically fit the selected column width to content.
+  - Tooltips, button styling, and group breaks matching Broiler Writer.
+
+- **Cell-Edit-Line**:
+  - Dedicated formula and cell-editing bar positioned between the toolbar and cell grid.
+  - Address / coordinate indicator showing the active cell (e.g., `A1`, `B2`).
+  - `fx` formula marker.
+  - Text editor field (`StandardEdit`) synchronizing in real time with the active cell.
+  - Enter commits the edit to the cell; Escape cancels and reverts to original content.
+
+- **Cross-Platform Implementations & Build Configurations**:
+  - **Windows** (`Broiler.Windows.Cells.slnx`, `Broiler.Cells.Windows`): Direct2D and Win32 clipboard integration.
+  - **Linux** (`Broiler.Linux.Cells.slnx`, `Broiler.Cells.Linux`): X11/OpenGL hardware-accelerated rendering and evdev input.
+  - **WebAssembly** (`Broiler.WebAssembly.Cells.slnx`, `Broiler.Cells.WebAssembly`): Browser canvas rendering, JS interop, and HTML5 shell.
+  - **Android** (`Broiler.Android.Cells.slnx`, `Broiler.Cells.Android`): Android native surface and touch input (`net10.0-android36.0`).
+  - **Shared UI & Controls** (`Broiler.Cells.UI`, `Broiler.Cells.Controls`, `Broiler.Cells.Core`): Platform-neutral components.
 - **Spreadsheet Serialization**:
   - `SheetCsvSerializer` in `Broiler.Cells.Core` converts between `SheetModel` and RFC 4180 CSV streams and files using `Broiler.Documents.Csv`.
   - Handles multiline cell text, quotes, commas, and cell coordinates.

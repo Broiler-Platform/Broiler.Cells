@@ -4,7 +4,9 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../src/Broiler.Cells.Core/Broiler.Cells.Core.csproj" />
     <ProjectReference Include="../../src/Broiler.Cells.Controls/Broiler.Cells.Controls.csproj" />
+    <ProjectReference Include="../../src/Broiler.Cells.UI/Broiler.Cells.UI.csproj" />
     <ProjectReference Include="../../src/Broiler.Cells.Windows/Broiler.Cells.Windows.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />

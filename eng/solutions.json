@@ -1,0 +1,67 @@
+{
+  "solutions": [
+    {
+      "path": "Broiler.Windows.Cells.slnx",
+      "description": "Windows Cells application and its transitive dependencies.",
+      "roots": [
+        "src/Broiler.Cells.Windows/Broiler.Cells.Windows.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*Linux[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*WebAssembly[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
+    },
+    {
+      "path": "Broiler.Linux.Cells.slnx",
+      "description": "Linux Cells application and its transitive dependencies.",
+      "roots": [
+        "src/Broiler.Cells.Linux/Broiler.Cells.Linux.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*(Windows|Win32|MediaFoundation)[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*WebAssembly[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
+    },
+    {
+      "path": "Broiler.Android.Cells.slnx",
+      "description": "Android Cells application and its transitive dependencies.",
+      "roots": [
+        "src/Broiler.Cells.Android/Broiler.Cells.Android.csproj"
+      ],
+      "deploy": [
+        {
+          "project": "src/Broiler.Cells.Android/Broiler.Cells.Android.csproj",
+          "solution": "Debug|*",
+          "reason": "Preserves the flag this solution has carried since the Android head landed, so Visual Studio installs the Debug APK on F5. It has no effect on `dotnet build` and nothing in CI depends on it."
+        }
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*(Windows|Win32|MediaFoundation|Linux|WebAssembly)[^/]*\\.csproj$"
+      ]
+    },
+    {
+      "path": "Broiler.WebAssembly.Cells.slnx",
+      "description": "WebAssembly Cells application and its transitive dependencies.",
+      "roots": [
+        "src/Broiler.Cells.WebAssembly/Broiler.Cells.WebAssembly.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*(Windows|Win32|MediaFoundation|Linux)[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
+    },
+    {
+      "path": "Broiler.Cells.Tests.slnx",
+      "description": "Cells test projects; component unit tests stay in component-owned solutions.",
+      "roots": [
+        "tests/Broiler.Cells.Tests/Broiler.Cells.Tests.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*(Linux|WebAssembly)[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
+    }
+  ]
+}

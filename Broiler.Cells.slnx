@@ -2,7 +2,10 @@
   <Folder Name="/src/">
     <Project Path="src/Broiler.Cells.Core/Broiler.Cells.Core.csproj" />
     <Project Path="src/Broiler.Cells.Controls/Broiler.Cells.Controls.csproj" />
+    <Project Path="src/Broiler.Cells.UI/Broiler.Cells.UI.csproj" />
     <Project Path="src/Broiler.Cells.Windows/Broiler.Cells.Windows.csproj" />
+    <Project Path="src/Broiler.Cells.Linux/Broiler.Cells.Linux.csproj" />
+    <Project Path="src/Broiler.Cells.WebAssembly/Broiler.Cells.WebAssembly.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Broiler.Cells.Tests/Broiler.Cells.Tests.csproj" />

@@ -171,6 +171,8 @@ public sealed class CellControl : UiElement, IStandardThemedControl
     public void StartEditing(string initialText) => _grid.StartEditing(initialText);
     public void CommitEdit() => _grid.CommitEdit();
     public void CancelEdit() => _grid.CancelEdit();
+    public void SetCellValue(CellPosition position, string value) => _grid.SetCellValue(position, value);
+    public void SetCellValue(int row, int column, string value) => _grid.SetCellValue(new CellPosition(row, column), value);
 
     public void ApplyTheme(StandardThemeTokens theme)
     {
