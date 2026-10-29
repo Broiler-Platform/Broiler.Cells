@@ -49,9 +49,12 @@ internal static partial class BrowserInterop
     [JSImport("cells.requestOpenFile", "main.js")]
     internal static partial void RequestOpenFile(string acceptExtensions);
 
-    [JSImport("cells.downloadFile", "main.js")]
-    internal static partial void DownloadFile(string fileName, string base64Data);
+    [JSImport("cells.requestAction", "main.js")]
+    internal static partial void RequestAction(string action, bool modified, string name);
 
-    [JSImport("cells.promptFileName", "main.js")]
-    internal static partial string PromptFileName(string defaultName);
+    [JSImport("cells.documentState", "main.js")]
+    internal static partial void DocumentState(string name, bool modified, double generation, double revision);
+
+    [JSImport("cells.reportOperation", "main.js")]
+    internal static partial void ReportOperation(string outcome, string message);
 }

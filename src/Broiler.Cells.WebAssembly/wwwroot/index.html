@@ -16,8 +16,19 @@
         * { box-sizing: border-box; }
         html, body, main { width: 100%; height: 100%; margin: 0; overflow: hidden; }
         body { background: var(--host-bg); }
+        .office-nav { height: 32px; padding: 5px 12px; background: #f8fafc; font-size: 14px; }
+        .office-nav a { color: #145cb3; }
+        main { height: calc(100% - 88px); }
+        #cells-operation { height: 28px; margin: 0; padding: 4px 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; background: #eff6ff; font-size: 13px; }
+        .limits { height: 28px; margin: 0; padding: 4px 12px; font-size: 12px; background: #fff; }
+        .limits[open] { position: absolute; bottom: 28px; width: 100%; height: auto; max-height: 40vh; overflow: auto; z-index: 2; border-top: 1px solid #94a3b8; }
+        .limits summary { cursor: pointer; }
+        .limits p { line-height: 1.6; margin: 8px 0; }
+        dialog { max-width: 480px; border: 1px solid #94a3b8; border-radius: 8px; padding: 24px; }
+        dialog input { display: block; width: 100%; margin: 12px 0; padding: 8px; }
+        dialog button { padding: 8px 12px; margin: 8px 4px 0 0; }
         #cells-status {
-            position: fixed; z-index: 2; top: 16px; left: 50%; transform: translateX(-50%);
+            position: fixed; z-index: 2; top: 48px; left: 50%; transform: translateX(-50%);
             display: inline-flex; align-items: center; min-height: 34px;
             padding: 7px 14px; border-radius: 999px; font-weight: 600;
             background: var(--status-bg); color: var(--status-fg); box-shadow: 0 4px 16px rgba(15, 30, 50, .18);
@@ -39,6 +50,7 @@
     </style>
 </head>
 <body>
+<nav class="office-nav" aria-label="Office navigation"><a href="https://demo.broiler.app/">Return to Office</a> · <span id="cells-name">Spreadsheet.csv</span></nav>
 <main>
     <div id="cells-status" role="status">Loading Broiler Cells…</div>
 
@@ -54,7 +66,19 @@
         <div id="error"></div>
     </div>
 </main>
+<details class="limits"><summary>CSV edition: limits and unsupported features</summary><p>CSV only · Up to 100 × 100 cells · 2 MiB/file · 16,384 characters/cell · 250,000 total at import/export · String values; formulas are not calculated. Clipboard: one cell. Undo: active text edit only. Browser-local checkpoints are available in Recovery; export a separate backup.</p></details>
+<p id="cells-operation" role="status" aria-live="polite">Changes stay in this tab until exported. Downloads do not confirm disk persistence.</p>
+<dialog id="cells-confirm" aria-labelledby="cells-confirm-title"><form method="dialog">
+    <h2 id="cells-confirm-title">Keep your changes?</h2><p>The sheet has modified content. Export keeps it open. Discard continues and loses those changes.</p>
+    <button value="export">Export and keep open</button><button value="discard">Discard</button><button value="cancel" autofocus>Cancel</button>
+</form></dialog>
+<dialog id="cells-export" aria-labelledby="cells-export-title"><form method="dialog">
+    <h2 id="cells-export-title">Export CSV</h2><label for="cells-filename">Filename</label><input id="cells-filename" required maxlength="180" value="Spreadsheet.csv">
+    <p>CSV preserves string values, including formula-like text. Other spreadsheet programs may interpret that text as formulas.</p>
+    <button value="export">Export</button><button value="cancel" formnovalidate>Cancel</button>
+</form></dialog>
 
-<script type="module" src="main.js"></script>
+<script type="importmap"></script>
+<script type="module" src="main#[.{fingerprint}].js"></script>
 </body>
 </html>

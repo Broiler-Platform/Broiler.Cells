@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
@@ -14,11 +13,12 @@ using Broiler.Input.Keyboard;
 using Broiler.Input.Mouse;
 using Broiler.Input.Text;
 using Broiler.UI;
+using Broiler.UI.Edit.Standard;
 
 namespace Broiler.Cells.WebAssembly;
 
 [SupportedOSPlatform("browser")]
-internal static class BrowserCellsApp
+internal static partial class BrowserCellsApp
 {
     private const string CanvasSelector = "#cells-canvas";
     private static readonly InputDeviceId PointerDevice = InputDeviceId.FromOpaqueValue("browser-primary-pointer");
@@ -63,7 +63,14 @@ internal static class BrowserCellsApp
             appUiHost,
             requestClose: static () => { },
             setWindowTitle: BrowserInterop.SetTitle,
-            openUrl: url => BrowserInterop.OpenUrl(url.AbsoluteUri));
+            openUrl: url => BrowserInterop.OpenUrl(url.AbsoluteUri),
+            fileAction: FileAction);
+        AttachSheet(_app.CellControl.Sheet);
+        _app.View.ClipboardCommand = operation => {
+            if (_host.IsClipboardEventActive) return false;
+            BrowserInterop.ReportOperation("Clipboard", "Use Ctrl/Cmd+C, X or V to copy, cut or paste the selected cell through the browser clipboard.");
+            return true;
+        };
 
         _app.RenderFrame();
         BrowserInterop.Ready(_host.ViewportSize.Width, _host.ViewportSize.Height);
@@ -80,14 +87,19 @@ internal static class BrowserCellsApp
 
     internal static void RenderFrame()
     {
-        var sw = Stopwatch.StartNew();
-        int drained = _dispatcher?.Drain() ?? 0;
-        var renderList = _app?.RenderFrame();
-        sw.Stop();
-        if (sw.ElapsedMilliseconds > 16 || drained > 0)
-        {
-            Console.WriteLine($"[Cells-WASM] RenderFrame: drained {drained} events, {renderList?.Commands.Count ?? 0} commands, {sw.ElapsedMilliseconds}ms");
-        }
+
+        _dispatcher?.Drain();
+        ObservePendingEditor();
+        _app?.RenderFrame();
+        // The browser textarea must follow the managed caret to receive committed text.
+        var caret = _host?.CurrentCaret;
+        BrowserInterop.PublishFrame(
+            _host?.FrameIndex ?? 0, caret is not null,
+            caret?.Bounds.X ?? 0, caret?.Bounds.Y ?? 0,
+            caret?.Bounds.Width ?? 0, caret?.Bounds.Height ?? 0,
+            caret?.CaretIndex ?? 0, caret?.SelectionStart ?? 0,
+            caret?.SelectionLength ?? 0, caret is not null, string.Empty, false);
+        PublishDocumentState();
     }
 
     internal static void PointerMove(double x, double y, int buttons, double timestampMilliseconds) =>
@@ -103,7 +115,6 @@ internal static class BrowserCellsApp
     internal static void PointerButton(double x, double y, int buttons, int domButton, bool down, double timestampMilliseconds) =>
         _dispatcher?.Post(() =>
         {
-            Console.WriteLine($"[Cells-WASM] PointerButton: button={domButton}, down={down}, pos=({x:F1}, {y:F1})");
             _buttons = (MouseButtons)buttons;
             _app?.Dispatch(UiInputEvent.FromMouseButton(new MouseButtonEvent(
                 Header(PointerDevice, timestampMilliseconds),
@@ -147,52 +158,74 @@ internal static class BrowserCellsApp
     internal static void TextInput(string text, double timestampMilliseconds) =>
         _dispatcher?.Post(() =>
         {
-            if (string.IsNullOrEmpty(text))
+            if (string.IsNullOrEmpty(text) || !AcceptText(text))
                 return;
 
             _app?.Dispatch(UiInputEvent.FromTextInput(new TextInputEvent(
                 Header(TextDevice, timestampMilliseconds),
                 text)));
+            _modified = true; _revision++;
         });
 
     internal static string ClipboardEvent(string operation, string text)
     {
-        if (_host is null)
-            return string.Empty;
-
-        _host.BeginClipboardEvent(string.Equals(operation, "paste", StringComparison.Ordinal) ? text : null);
-        if (string.Equals(operation, "cut", StringComparison.OrdinalIgnoreCase))
-            _app?.View.CutSelection();
-        else if (string.Equals(operation, "copy", StringComparison.OrdinalIgnoreCase))
-            _app?.View.CopySelection();
-        else if (string.Equals(operation, "paste", StringComparison.OrdinalIgnoreCase))
-            _app?.View.PasteSelection();
-
-        string output = _host.EndClipboardEvent();
-        BrowserInterop.ScheduleFrame();
-        return output;
+        _dispatcher?.Drain();
+        if (_host is null || _app is null) return string.Empty;
+        CommitPendingEdits();
+        _host.BeginClipboardEvent(operation == "paste" ? text : null);
+        try {
+            if (operation == "copy") _app.View.CopySelection();
+            else if (operation == "cut") _app.View.CutSelection();
+            else if (operation == "paste") {
+                if (text.Length == 0) { BrowserInterop.ReportOperation("Clipboard", "Clipboard has no plain text; selected cell retained."); return string.Empty; }
+                if (text.Length > MaximumCellCharacters) { BrowserInterop.ReportOperation("Failed", "Clipboard text exceeds the 16,384 character cell limit."); return string.Empty; }
+                _app.View.PasteSelection();
+            }
+            return _host.EndClipboardEvent();
+        } finally { _host.EndClipboardEvent(); BrowserInterop.ScheduleFrame(); }
     }
 
-    internal static void LoadDocument(string fileName, string base64Data) =>
-        _dispatcher?.Post(() =>
-        {
-            try
-            {
-                byte[] bytes = Convert.FromBase64String(base64Data ?? string.Empty);
-                using var ms = new MemoryStream(bytes);
-                SheetModel sheet = SheetCsvSerializer.Load(ms);
-                _app?.CellControl.SetSheet(sheet);
-                _app?.CellControl.SelectCell(new CellPosition(0, 0));
-                BrowserInterop.SetTitle($"Broiler Cells - {fileName}");
-            }
-            catch (Exception ex)
-            {
-                BrowserInterop.Failed(ex.GetType().Name, ex.ToString());
-            }
-        });
+    private static bool _compositionStartedEdit;
+
+    private static bool AcceptText(string text)
+    {
+        var edit = _app?.Session.FocusedElement as StandardEdit;
+        if ((edit?.Text.Length ?? 0) - (edit?.SelectionLength ?? 0) + text.Length <= MaximumCellCharacters) return true;
+        BrowserInterop.ReportOperation("Failed", "Input exceeds the 16,384 character cell limit; input was not inserted.");
+        return false;
+    }
+
+    internal static void TextComposition(string text, int state, double timestamp) => _dispatcher?.Post(() => {
+        if (_app is null) return;
+        // A composition starts cell editing before preedit is dispatched to StandardEdit.
+        if (state == 0) {
+            _compositionStartedEdit = _app.Session.FocusedElement is not StandardEdit;
+            if (_compositionStartedEdit) _app.CellControl.StartEditing(string.Empty);
+        }
+        if ((state == 1 || state == 2) && !AcceptText(text)) state = 3;
+        _app.Dispatch(UiInputEvent.FromTextComposition(new TextCompositionEvent(
+            Header(TextDevice, timestamp), text, (TextCompositionState)state, 0, 0)));
+        if (state == 2 && text.Length > 0) { _modified = true; _revision++; }
+        if (state == 3 && _compositionStartedEdit) _app.CellControl.CancelEdit();
+    });
+
+    internal static void CancelPointer(double timestamp) => _dispatcher?.Post(() => {
+        if (_app is null) return;
+        var outside = InputPoint.ClientDeviceIndependentPixels(-1, -1);
+        _app.Dispatch(UiInputEvent.FromMouseMove(new MouseMoveEvent(Header(PointerDevice, timestamp), outside, _buttons)));
+        for (int button = 0; button < 5; button++) {
+            if ((_buttons & (MouseButtons)(button == 1 ? 4 : button == 2 ? 2 : 1 << button)) == 0) continue;
+            _app.Dispatch(UiInputEvent.FromMouseButton(new MouseButtonEvent(Header(PointerDevice, timestamp), outside, MouseButtons.None, MapButton(button), MouseButtonTransition.Up)));
+        }
+        _buttons = MouseButtons.None;
+        if (_app.Session.CapturedElement is UiElement captured) _app.Session.ReleaseInputCapture(captured);
+    });
 
     internal static void Dispose()
     {
+        if (_observedSheet is not null) _observedSheet.Changed -= SheetChanged;
+        _observedSheet = null;
+        _dispatcher = null;
         _app?.Dispose();
         _app = null;
         _host?.Dispose();
@@ -252,6 +285,17 @@ internal static partial class BrowserCellsExports
     [JSExport]
     internal static void LoadDocument(string fileName, string base64Data) =>
         BrowserCellsApp.LoadDocument(fileName, base64Data);
+
+    [JSExport] internal static void UiTextComposition(string text, int state, double timestamp) => BrowserCellsApp.TextComposition(text, state, timestamp);
+    [JSExport] internal static void UiCancelPointer(double timestamp) => BrowserCellsApp.CancelPointer(timestamp);
+    [JSExport] internal static void CompleteAction(string action) => BrowserCellsApp.CompleteAction(action);
+    [JSExport] internal static string PrepareExport(string name) => BrowserCellsApp.PrepareExport(name);
+    [JSExport] internal static void ExportCompleted(string outcome, string message) => BrowserCellsApp.ExportCompleted(outcome, message);
+    [JSExport] internal static void FileMessage(string outcome, string message) => BrowserInterop.ReportOperation(outcome, message);
+    [JSExport] internal static string RecoverySnapshot() => BrowserCellsApp.RecoverySnapshot();
+    [JSExport] internal static bool RestoreRecovery(string name, string payload) => BrowserCellsApp.RestoreRecovery(name, payload);
+    [JSExport] internal static string SelectedCellText() => BrowserCellsApp.SelectedCellText();
+    [JSExport] internal static string SheetSnapshot() => BrowserCellsApp.SheetSnapshot();
 
     [JSExport]
     internal static void Dispose() => BrowserCellsApp.Dispose();

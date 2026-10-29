@@ -36,6 +36,8 @@ public sealed class SheetModel
                 _values[row, column] = initialValue?.Invoke(row, column) ?? string.Empty;
     }
 
+    public event EventHandler? Changed;
+
     public int MaxRows { get; }
     public int MaxColumns { get; }
     public int RowCount { get; }
@@ -52,7 +54,10 @@ public sealed class SheetModel
         set
         {
             ValidateIndices(row, column);
-            _values[row, column] = value ?? string.Empty;
+            string next = value ?? string.Empty;
+            if (_values[row, column] == next) return;
+            _values[row, column] = next;
+            Changed?.Invoke(this, EventArgs.Empty);
         }
     }
 

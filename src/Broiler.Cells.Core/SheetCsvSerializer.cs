@@ -63,12 +63,15 @@ public static class SheetCsvSerializer
         Stream source,
         CsvReadOptions? options = null,
         int maxRows = SheetModel.MaximumRows,
-        int maxColumns = SheetModel.MaximumColumns)
+        int maxColumns = SheetModel.MaximumColumns,
+        bool rejectDataLoss = false)
     {
         ArgumentNullException.ThrowIfNull(source);
 
         var codec = new CsvDocumentCodec();
         DocumentReadResult result = codec.Read(source, options ?? CsvReadOptions.Default);
+        if (rejectDataLoss && (result.Status != DocumentResultStatus.Success || result.Diagnostics.Any(d => d.Severity != DocumentDiagnosticSeverity.Info)))
+            throw new InvalidDataException("CSV could not be read without loss: " + string.Join("; ", result.Diagnostics.Select(d => d.Code + ": " + d.Message)));
         RichTextDocument document = result.Document;
 
         if (document.Tables.Count > 0)
@@ -83,6 +86,8 @@ public static class SheetCsvSerializer
                 }
             }
 
+            if (rejectDataLoss && (table.Rows.Count > maxRows || maxFoundColumns > maxColumns))
+                throw new InvalidDataException($"CSV exceeds the {maxRows} row / {maxColumns} column sheet limit. The sheet was not truncated.");
             int rowCount = Math.Clamp(table.Rows.Count, 1, maxRows);
             int colCount = Math.Clamp(maxFoundColumns, 1, maxColumns);
 
@@ -113,6 +118,7 @@ public static class SheetCsvSerializer
         // Loose paragraphs fallback
         if (document.ParagraphCount > 0)
         {
+            if (rejectDataLoss && document.ParagraphCount > maxRows) throw new InvalidDataException("CSV exceeds the sheet row limit.");
             int rowCount = Math.Clamp(document.ParagraphCount, 1, maxRows);
             var sheet = new SheetModel(rowCount, 1, maxRows: maxRows, maxColumns: maxColumns);
             for (int r = 0; r < rowCount; r++)

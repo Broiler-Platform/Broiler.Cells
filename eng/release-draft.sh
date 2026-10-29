@@ -81,6 +81,14 @@ for rid in win-x64 linux-x64; do
   done
 done
 
+web_source="$artifacts/broiler-cells-web-$version"
+web_zip="$web_source/Broiler.Cells-$version-browser-wasm.zip"
+web_metadata="$web_source/Broiler.Cells-$version-browser-wasm.web-artifact.json"
+web_sums="$web_source/Broiler.Cells-$version-browser-wasm.SHA256SUMS.txt"
+"$python" eng/web/artifact.py verify --archive "$web_zip" --metadata "$web_metadata" --require-release --product cell --version "$version" --tag "$tag" --commit "$(git rev-parse HEAD)" --repository "${GITHUB_REPOSITORY:-Broiler-Platform/Broiler.Cells}"
+# Keep the new web descriptor separate from the existing desktop component schema.
+web_assets=("$web_zip" "$web_metadata" "$web_sums")
+
 android_dir="$artifacts/broiler-cells-android-$version"
 aab="$android_dir/Broiler.Cells-$version.aab"
 apk="$android_dir/Broiler.Cells-$version-arm64.apk"
@@ -126,7 +134,7 @@ fi
 
 "$python" eng/write-component-manifest.py --directory "$out" --product cell --version "$version" --repository Broiler-Platform/Broiler.Cells --tag "$tag" --commit "$(git rev-parse HEAD)" --self-contained-mode native-aot --additional "${android_assets[@]}"
 
-gh release create "$tag" "${desktop_assets[@]}" "${android_assets[@]}" "$out/component-release.json" "$out/SHA256SUMS.txt" \
+gh release create "$tag" "${desktop_assets[@]}" "${android_assets[@]}" "${web_assets[@]}" "$out/component-release.json" "$out/SHA256SUMS.txt" \
   --verify-tag \
   --draft \
   --prerelease \

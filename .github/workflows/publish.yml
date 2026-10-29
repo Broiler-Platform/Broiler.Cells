@@ -11,6 +11,7 @@ name: Publish
 #   Broiler.Cells-<version>-linux-x64-framework-dependent.zip   Broiler.Cells.Linux + its assemblies
 #   Broiler.Cells-<version>.aab                                 app bundle (arm64 + x86_64)
 #   Broiler.Cells-<version>-arm64.apk                           sideloadable APK
+#   Broiler.Cells-<version>-browser-wasm.zip                    complete verified wwwroot, plus descriptor/checksum
 #
 # The two desktop variants:
 #
@@ -320,6 +321,14 @@ jobs:
           path: artifacts/android/signed/*
           if-no-files-found: error
 
+  web:
+    name: Publish reusable Cells WebAssembly artifact
+    needs: version
+    uses: ./.github/workflows/web-artifact.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      source_tag: ${{ needs.version.outputs.tag }}
+
   release-tests:
     name: Product release regression tests
     needs: version
@@ -332,7 +341,7 @@ jobs:
 
   release:
     name: Tag and draft release ${{ needs.version.outputs.tag }}
-    needs: [version, build, android, release-tests]
+    needs: [version, build, android, web, release-tests]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -374,6 +383,7 @@ jobs:
               done
             done
             echo "- \`Broiler.Cells-$VERSION.aab\` and \`Broiler.Cells-$VERSION-arm64.apk\`"
+            echo "- \`Broiler.Cells-$VERSION-browser-wasm.zip\`, producer descriptor and SHA-256 checksum"
             echo
             echo "Review it under Releases and publish it there."
           } >> "$GITHUB_STEP_SUMMARY"

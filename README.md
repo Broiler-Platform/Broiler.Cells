@@ -18,6 +18,7 @@ by `Broiler.Documents.Csv`. The model, serialization, and cell control are separ
 The roadmap ends at Version 3. Each version builds on the previous one.
 
 - [Roadmap and acceptance criteria](docs/roadmap.md)
+- [Browser edition: file flows, safety, limits and verification](docs/browser-cells.md)
 - [Application design and reusable cell control](docs/design.md)
 - [Version 1 structure and verification](docs/version-1.md)
 - [Version 2 structure and verification](docs/version-2.md)

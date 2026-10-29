@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.Versioning;
 using Broiler.Graphics;
 using Broiler.Graphics.Color;
@@ -62,47 +61,40 @@ internal sealed class BrowserCanvasUiHost :
     public double Scale { get; private set; } = 1;
     public BColor ClearColor { get; set; } = BColor.White;
     internal UiTextCaretInfo? CurrentCaret => _caret;
+    internal bool IsClipboardEventActive => _clipboardEventActive;
     internal long FrameIndex => _renderer.FrameIndex;
 
     public BRenderList CreateRenderList(int capacity = 0) => new(capacity);
 
     public BImageHandle CreateImage(ReadOnlySpan<byte> encodedImage)
     {
-        Console.WriteLine($"[Cells-WASM] BrowserCanvasUiHost.CreateImage: bytes length={encodedImage.Length}");
         try
         {
-            var sw = Stopwatch.StartNew();
             using BBitmap bitmap = BBitmap.Decode(encodedImage);
             var result = _renderer.CreateImage(bitmap.ToPixelBuffer());
-            Console.WriteLine($"[Cells-WASM] BrowserCanvasUiHost.CreateImage: decoded {bitmap.Width}x{bitmap.Height} in {sw.ElapsedMilliseconds}ms, handle={result.Handle}");
             return result;
         }
         catch (Exception error) when (error is not OutOfMemoryException)
         {
-            Console.WriteLine($"[Cells-WASM] BrowserCanvasUiHost.CreateImage: ERROR {error.Message}");
             return BImageHandle.Invalid;
         }
     }
 
     public BImageHandle CreateImage(BPixelBuffer pixels)
     {
-        Console.WriteLine($"[Cells-WASM] BrowserCanvasUiHost.CreateImage: BPixelBuffer {pixels.Width}x{pixels.Height}");
         try
         {
             var result = _renderer.CreateImage(pixels);
-            Console.WriteLine($"[Cells-WASM] BrowserCanvasUiHost.CreateImage: handle={result.Handle}");
             return result;
         }
         catch (Exception error) when (error is not OutOfMemoryException)
         {
-            Console.WriteLine($"[Cells-WASM] BrowserCanvasUiHost.CreateImage (pixels): ERROR {error.Message}");
             return BImageHandle.Invalid;
         }
     }
 
     public void ReleaseImage(BImageHandle image)
     {
-        Console.WriteLine($"[Cells-WASM] BrowserCanvasUiHost.ReleaseImage: handle={image.Handle}");
         _renderer.ReleaseImage(image);
     }
 
@@ -128,17 +120,13 @@ internal sealed class BrowserCanvasUiHost :
             ViewportSize.Height,
             ClearColor);
 
-        if (result.UsedCpuFallback)
-        {
-            Console.WriteLine($"[Cells-WASM] WARNING: Frame {_renderer.FrameIndex} triggered CPU FALLBACK! (ops={result.OpCount}, streamLength={result.StreamLength})");
-        }
     }
 
     public void PublishCaret(UiTextCaretInfo caret) => _caret = caret;
 
     public void ClearCaret(UiElement owner)
     {
-        if (ReferenceEquals(_caret?.Owner, owner))
+        if (owner is null || ReferenceEquals(_caret?.Owner, owner))
             _caret = null;
     }
 

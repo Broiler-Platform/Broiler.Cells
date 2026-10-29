@@ -1,0 +1,7 @@
+{
+  "product": "cell",
+  "productName": "Cells",
+  "repository": "Broiler-Platform/Broiler.Cells",
+  "project": "src/Broiler.Cells.WebAssembly/Broiler.Cells.WebAssembly.csproj",
+  "versionProperty": "BroilerCellsVersion"
+}

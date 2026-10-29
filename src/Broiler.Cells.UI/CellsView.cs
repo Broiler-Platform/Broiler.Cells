@@ -53,11 +53,13 @@ public class CellsView : UiElement
     private readonly bool _compactMode;
 
     private string? _currentFilePath;
+    private readonly Action<string>? _fileAction;
 
-    public CellsView(SheetModel sheet, bool compactMode = false)
+    public CellsView(SheetModel sheet, bool compactMode = false, Action<string>? fileAction = null)
     {
         ArgumentNullException.ThrowIfNull(sheet);
         _compactMode = compactMode;
+        _fileAction = fileAction;
         AccessibleName = "Broiler Cells";
 
         _dispatcher = new StandardCommandDispatcher();
@@ -113,6 +115,8 @@ public class CellsView : UiElement
     public UiWindow? OwnerWindow { get; set; }
     public Action<Uri>? OpenUrl { get; set; }
     public Func<BSize>? ViewportProvider { get; set; }
+    /// <summary>Returns true when the host handles a clipboard command.</summary>
+    public Func<string, bool>? ClipboardCommand { get; set; }
 
     public event EventHandler? ExitRequested;
     public event EventHandler<string>? TitleChanged;
@@ -129,8 +133,8 @@ public class CellsView : UiElement
         var fileMenu = new UiMenuItem("menu.file", "File") { AccessKey = 'F' };
         fileMenu.Children.Add(new UiMenuItem("file.new", "New") { AccessKey = 'N', Accelerator = "Ctrl+N", CommandName = "file.new" });
         fileMenu.Children.Add(new UiMenuItem("file.open", "Open") { AccessKey = 'O', Accelerator = "Ctrl+O", CommandName = "file.open" });
-        fileMenu.Children.Add(new UiMenuItem("file.save", "Save") { AccessKey = 'S', Accelerator = "Ctrl+S", CommandName = "file.save" });
-        fileMenu.Children.Add(new UiMenuItem("file.save-as", "Save as") { AccessKey = 'A', Accelerator = "Ctrl+Shift+S", CommandName = "file.save-as" });
+        fileMenu.Children.Add(new UiMenuItem("file.save", (_fileAction is null ? "Save" : "Export download")) { AccessKey = 'S', Accelerator = "Ctrl+S", CommandName = "file.save" });
+        fileMenu.Children.Add(new UiMenuItem("file.save-as", (_fileAction is null ? "Save as" : "Export as")) { AccessKey = 'A', Accelerator = "Ctrl+Shift+S", CommandName = "file.save-as" });
         fileMenu.Children.Add(new UiMenuItem("file.sep1", "") { IsSeparator = true });
         fileMenu.Children.Add(new UiMenuItem("file.close", "Close") { AccessKey = 'C', Accelerator = "Ctrl+W", CommandName = "file.close" });
         fileMenu.Children.Add(new UiMenuItem("file.sep2", "") { IsSeparator = true });
@@ -187,8 +191,8 @@ public class CellsView : UiElement
 
         StandardButton newButton = CreateButton("New", "New spreadsheet (Ctrl+N)", NewDocument, CellsIcons.NewDocument);
         StandardButton openButton = CreateButton("Open", "Open... (Ctrl+O)", () => _ = OpenDocumentAsync(), CellsIcons.OpenDocument);
-        StandardButton saveButton = CreateButton("Save", "Save (Ctrl+S)", SaveDocument, CellsIcons.Save);
-        StandardButton saveAsButton = CreateButton("Save as", "Save as... (Ctrl+Shift+S)", () => _ = SaveDocumentAsAsync(), CellsIcons.SaveAs);
+        StandardButton saveButton = CreateButton(_fileAction is null ? "Save" : "Export", "Save / export (Ctrl+S)", SaveDocument, CellsIcons.Save);
+        StandardButton saveAsButton = CreateButton(_fileAction is null ? "Save as" : "Export as", "Save / export as (Ctrl+Shift+S)", () => _ = SaveDocumentAsAsync(), CellsIcons.SaveAs);
 
         StandardButton cutButton = CreateButton("Cut", "Cut (Ctrl+X)", CutSelection, CellsIcons.Cut);
         StandardButton copyButton = CreateButton("Copy", "Copy (Ctrl+C)", CopySelection, CellsIcons.Copy);
@@ -218,6 +222,7 @@ public class CellsView : UiElement
 
     public void NewDocument()
     {
+        if (_fileAction is not null) { _fileAction("new"); return; }
         var newSheet = new SheetModel(10, 10);
         _cellControl.SetSheet(newSheet);
         _cellControl.SelectCell(new CellPosition(0, 0));
@@ -229,11 +234,13 @@ public class CellsView : UiElement
 
     public void CloseDocument()
     {
+        if (_fileAction is not null) { _fileAction("close"); return; }
         NewDocument();
     }
 
     public void SaveDocument()
     {
+        if (_fileAction is not null) { _fileAction("export"); return; }
         if (!string.IsNullOrEmpty(_currentFilePath))
         {
             Save(_currentFilePath);
@@ -246,6 +253,7 @@ public class CellsView : UiElement
 
     public async Task<bool> OpenDocumentAsync()
     {
+        if (_fileAction is not null) { _fileAction("open"); return false; }
         if (OwnerWindow is null)
             return false;
 
@@ -279,6 +287,7 @@ public class CellsView : UiElement
 
     public async Task<bool> SaveDocumentAsAsync()
     {
+        if (_fileAction is not null) { _fileAction("export-as"); return false; }
         if (OwnerWindow is null)
             return false;
 
@@ -335,12 +344,14 @@ public class CellsView : UiElement
 
     public void CutSelection()
     {
+        if (ClipboardCommand?.Invoke("cut") == true) return;
         CopySelection();
         ClearSelection();
     }
 
     public void CopySelection()
     {
+        if (ClipboardCommand?.Invoke("copy") == true) return;
         if (_cellControl.SelectedCell is { } pos)
         {
             string val = _cellControl.Sheet[pos.Row, pos.Column];
@@ -353,6 +364,7 @@ public class CellsView : UiElement
 
     public void PasteSelection()
     {
+        if (ClipboardCommand?.Invoke("paste") == true) return;
         if (_cellControl.SelectedCell is { } pos)
         {
             if (Session?.Host is IUiClipboardHost clipboard && clipboard.TryGetText(out string text))
@@ -380,24 +392,20 @@ public class CellsView : UiElement
 
     public void ExitApplication()
     {
+        if (_fileAction is not null) { _fileAction("exit"); return; }
         ExitRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public StandardAboutDialog? ShowAbout()
     {
-        Console.WriteLine("[Cells-WASM] CellsView.ShowAbout() invoked.");
         if (OwnerWindow is null || OwnerWindow.IsDisposed || OwnerWindow.IsClosed)
         {
-            Console.WriteLine("[Cells-WASM] CellsView.ShowAbout: OwnerWindow is null or closed.");
             return null;
         }
 
-        Console.WriteLine("[Cells-WASM] CellsView.ShowAbout: setting focus to cell control...");
         _cellControl.Focus();
         BSize viewport = ViewportProvider?.Invoke() ?? (OwnerWindow.Bounds.Width > 0 && OwnerWindow.Bounds.Height > 0 ? OwnerWindow.Bounds.Size : new BSize(800, 600));
-        Console.WriteLine($"[Cells-WASM] CellsView.ShowAbout: viewport={viewport}, delegating to CellsAbout.Show...");
         var result = CellsAbout.Show(OwnerWindow, viewport, typeof(CellsView).Assembly, OpenUrl);
-        Console.WriteLine("[Cells-WASM] CellsView.ShowAbout: completed.");
         return result;
     }
 
