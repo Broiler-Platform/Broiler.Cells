@@ -19,6 +19,8 @@ using Broiler.UI.Label.Standard;
 using Broiler.UI.Menu;
 using Broiler.UI.Menu.Standard;
 using Broiler.UI.Standard;
+using Broiler.UI.Edit.Standard;
+using Broiler.UI.TabView.Standard;
 using Broiler.UI.Toolbar;
 using Broiler.UI.Toolbar.Standard;
 using Broiler.UI.Window;
@@ -54,6 +56,25 @@ public class CellsView : UiElement
 
     private string? _currentFilePath;
     private readonly Action<string>? _fileAction;
+    private string? _importedWorkbookPath;
+    private readonly StandardTabView _sheetTabs = new() { HeaderHeight = 32, AccessibleName = "Worksheets" };
+    private readonly StandardEdit _sheetName = new() { AccessibleName = "Worksheet name" };
+    private readonly StandardButton _addSheet = new() { Text = "+", AccessibleName = "Add worksheet" };
+    private readonly StandardButton _renameSheet = new() { Text = "Rename" };
+    private readonly StandardButton _removeSheet = new() { Text = "Remove" };
+    private readonly System.Collections.Generic.Dictionary<string, CellPosition> _sheetSelections = [];
+    private WorkbookModel _workbook = null!;
+    private WorksheetModel? _displayedWorksheet;
+    private readonly StandardButton _previousSheet = new() { Text = "‹", AccessibleName = "Previous worksheet" };
+    private readonly StandardButton _nextSheet = new() { Text = "›", AccessibleName = "Next worksheet" };
+    private int _tabPageSize = 4;
+    private bool _updatingTabs;
+    private readonly StandardButton _entryModeButton = new() { Text = "Type: Auto", AccessibleName = "Cell entry mode" };
+    private readonly StandardButton _applyValueButton = new() { Text = "Apply value" };
+    private readonly StandardEdit _numberFormat = new() { Text = "General", AccessibleName = "Number format" };
+    private readonly StandardButton _applyFormatButton = new() { Text = "Apply format" };
+    private string? _pendingRemoval;
+
 
     public CellsView(SheetModel sheet, bool compactMode = false, Action<string>? fileAction = null)
     {
@@ -81,6 +102,7 @@ public class CellsView : UiElement
 
         _cellControl = new CellControl(sheet, isEditingEnabled: true, areHeadersVisible: true);
         _cellControl.SelectedCellChanged += OnSelectedCellChanged;
+        _cellControl.CellCommitted += (_, _) => UpdateCalculationStatus();
 
         _cellEditLine = new CellEditLine();
         _cellEditLine.Attach(_cellControl);
@@ -100,6 +122,33 @@ public class CellsView : UiElement
         AddChild(_cellControl);
         AddChild(_address);
         AddChild(_status);
+        AddChild(_entryModeButton);
+        AddChild(_applyValueButton);
+        AddChild(_numberFormat);
+        AddChild(_applyFormatButton);
+        _entryModeButton.Clicked += (_, _) => SetEntryMode((CellEntryMode)(((int)_cellControl.Grid.EntryMode + 1) % Enum.GetValues<CellEntryMode>().Length));
+        _applyValueButton.Clicked += (_, _) => ApplySelectedInput(_cellEditLine.Text);
+        _applyFormatButton.Clicked += (_, _) => TryWorksheetOperation(() => ApplySelectedNumberFormat(_numberFormat.Text));
+        _numberFormat.Submitted += (_, _) => TryWorksheetOperation(() => ApplySelectedNumberFormat(_numberFormat.Text));
+        _cellControl.Grid.InputRejected += (_, message) => { _status.Text = message; Invalidate(UiInvalidationKind.Render); };
+        AddChild(_sheetTabs);
+        AddChild(_previousSheet);
+        AddChild(_nextSheet);
+        AddChild(_sheetName);
+        AddChild(_addSheet);
+        AddChild(_renameSheet);
+        AddChild(_removeSheet);
+        _sheetTabs.SelectionChanged += (_, _) => { if (!_updatingTabs && _sheetTabs.SelectedTab is { } tab) TryWorksheetOperation(() => SelectWorksheet(_workbook.Sheets.ToList().FindIndex(s => s.Id == tab.Id))); };
+        _sheetTabs.Reordering += (_, e) => e.Cancel = true;
+        _sheetTabs.CloseRequested += (_, e) => { SelectWorksheet(_workbook.Sheets.ToList().FindIndex(s => s.Id == e.Id)); RequestRemoveWorksheet(); };
+        _previousSheet.Clicked += (_, _) => TryWorksheetOperation(() => SelectWorksheet((_workbook.SelectedIndex + _workbook.Sheets.Count - 1) % _workbook.Sheets.Count));
+        _nextSheet.Clicked += (_, _) => TryWorksheetOperation(() => SelectWorksheet((_workbook.SelectedIndex + 1) % _workbook.Sheets.Count));
+        _addSheet.Clicked += (_, _) => TryWorksheetOperation(AddWorksheet);
+        _renameSheet.Clicked += (_, _) => TryWorksheetOperation(() => RenameWorksheet(_sheetName.Text));
+        _sheetName.Submitted += (_, _) => TryWorksheetOperation(() => RenameWorksheet(_sheetName.Text));
+        _removeSheet.Clicked += (_, _) => RequestRemoveWorksheet();
+        SetDocument(sheet);
+
     }
 
     public StandardMenu Menu => _menu;
@@ -120,6 +169,182 @@ public class CellsView : UiElement
 
     public event EventHandler? ExitRequested;
     public event EventHandler<string>? TitleChanged;
+
+    public WorkbookModel Workbook => _workbook;
+    public StandardTabView WorksheetTabs => _sheetTabs;
+
+    /// <summary>Install a complete document, including imported worksheets and metadata.</summary>
+    public void SetDocument(SheetModel sheet)
+    {
+        if (_workbook is not null)
+        {
+            _workbook.StructureChanged -= WorkbookStructureChanged;
+            _workbook.SelectionChanged -= WorkbookSelectionChanged;
+        }
+        _workbook = sheet.Workbook ?? new WorkbookModel(sheet);
+        _workbook.StructureChanged += WorkbookStructureChanged;
+        _workbook.SelectionChanged += WorkbookSelectionChanged;
+        _displayedWorksheet = null;
+        _sheetSelections.Clear();
+        ShowWorksheet();
+        RefreshWorksheetTabs();
+    }
+
+    private void CommitWorksheetEdit()
+    {
+        _cellControl.CommitEdit();
+        if (_cellControl.Grid.LastInputError is { } gridError) throw new InvalidOperationException(gridError);
+        _cellEditLine.CommitEdit();
+        if (_cellControl.Grid.LastInputError is { } lineError) throw new InvalidOperationException(lineError);
+    }
+
+    private bool _reportedFormulaIssue;
+    public void RecalculateWorkbook()
+    {
+        CommitWorksheetEdit();
+        foreach (var worksheet in _workbook.Sheets) worksheet.Sheet.Recalculate();
+        UpdateCalculationStatus();
+        Invalidate(UiInvalidationKind.Render | UiInvalidationKind.Semantic);
+    }
+
+    private void UpdateCalculationStatus()
+    {
+        var issues = _cellControl.Sheet.FormulaIssues;
+        if (issues.Count > 0)
+        {
+            var first = issues[0];
+            _status.Text = $"{issues.Count} formula error(s): {first.Cell.ToAddress()} — {first.Message}";
+            _reportedFormulaIssue = true;
+        }
+        else if (_reportedFormulaIssue)
+        {
+            _status.Text = "Formula errors resolved; worksheet recalculated.";
+            _reportedFormulaIssue = false;
+        }
+    }
+
+    public CellEntryMode EntryMode => _cellControl.Grid.EntryMode;
+    public void SetEntryMode(CellEntryMode mode)
+    {
+        if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
+        _cellControl.Grid.EntryMode = mode;
+        _entryModeButton.Text = "Type: " + mode;
+        _status.Text = mode == CellEntryMode.Formula ? "Formula entry: begin with =. Supported same-worksheet formulas calculate automatically." : "Cell entry mode: " + mode;
+        Invalidate(UiInvalidationKind.Render);
+    }
+
+    public void ApplySelectedInput(string input)
+    {
+        if (_cellControl.SelectedCell is not { } selected) return;
+        _cellControl.Grid.SetCellValue(selected, input, force: true);
+        if (_cellControl.Grid.LastInputError is null) _cellEditLine.CancelEdit();
+    }
+
+    public void ApplySelectedNumberFormat(string? format)
+    {
+        CommitWorksheetEdit();
+        if (_cellControl.SelectedCell is not { } selected) return;
+        _cellControl.Sheet.SetNumberFormat(selected.Row, selected.Column, format);
+        _cellControl.Grid.RefreshCellDisplay(selected);
+        _cellEditLine.CancelEdit();
+        _status.Text = "Format applied. Raw values are retained; supported formulas calculate automatically.";
+        Invalidate(UiInvalidationKind.Render);
+    }
+
+    public void SelectWorksheet(int index)
+    {
+        CommitWorksheetEdit();
+        _workbook.Select(index);
+    }
+
+    public void AddWorksheet()
+    {
+        CommitWorksheetEdit();
+        _workbook.Add();
+    }
+
+    public void RenameWorksheet(string name)
+    {
+        _workbook.Rename(_workbook.SelectedIndex, name);
+        _status.Text = "Worksheet renamed. Formula references are unchanged; review cross-sheet formulas before recalculating.";
+    }
+
+    public void RemoveWorksheet()
+    {
+        CommitWorksheetEdit();
+        _workbook.Remove(_workbook.SelectedIndex);
+    }
+
+    private void RequestRemoveWorksheet()
+    {
+        if (_workbook.Sheets.Count == 1) { TryWorksheetOperation(RemoveWorksheet); return; }
+        if (_pendingRemoval != _workbook.SelectedSheet.Id)
+        {
+            _pendingRemoval = _workbook.SelectedSheet.Id;
+            _removeSheet.Text = "Confirm remove";
+            _status.Text = $"Remove worksheet '{_workbook.SelectedSheet.Name}' and all its data (no undo; formula references unchanged)? Click Confirm remove, or select another worksheet to cancel.";
+            Invalidate(UiInvalidationKind.Render);
+            return;
+        }
+        TryWorksheetOperation(RemoveWorksheet);
+    }
+
+    private void TryWorksheetOperation(Action action)
+    {
+        try { action(); }
+        catch (Exception error) when (error is ArgumentException or InvalidOperationException)
+        {
+            RefreshWorksheetTabs();
+            _status.Text = error.Message;
+            Invalidate(UiInvalidationKind.Render);
+        }
+    }
+
+    private void WorkbookStructureChanged(object? sender, EventArgs args)
+    {
+        foreach (var id in _sheetSelections.Keys.Where(id => !_workbook.Sheets.Any(s => s.Id == id)).ToArray())
+            _sheetSelections.Remove(id);
+        _pendingRemoval = null;
+        _removeSheet.Text = "Remove";
+        RefreshWorksheetTabs();
+    }
+    private void WorkbookSelectionChanged(object? sender, EventArgs args)
+    {
+        ShowWorksheet();
+        RefreshWorksheetTabs();
+    }
+
+    private void ShowWorksheet()
+    {
+        if (_displayedWorksheet is not null && _cellControl.SelectedCell is { } selected)
+            _sheetSelections[_displayedWorksheet.Id] = selected;
+        _displayedWorksheet = _workbook.SelectedSheet;
+        _reportedFormulaIssue = false;
+        _cellControl.SetSheet(_displayedWorksheet.Sheet);
+        _cellControl.SelectCell(_sheetSelections.TryGetValue(_displayedWorksheet.Id, out var position) ? position : new CellPosition(0, 0));
+        _cellEditLine.CancelEdit();
+        _sheetName.Text = _displayedWorksheet.Name;
+        if (_cellControl.SelectedCell is { } cell) _numberFormat.Text = _cellControl.Sheet.GetContent(cell.Row, cell.Column).NumberFormat ?? "General";
+        _pendingRemoval = null;
+        _removeSheet.Text = "Remove";
+        _status.Text = $"Worksheet: {_displayedWorksheet.Name} ({_workbook.SelectedIndex + 1}/{_workbook.Sheets.Count}); supported formulas calculate automatically.";
+        Invalidate(UiInvalidationKind.Measure);
+    }
+
+    private void RefreshWorksheetTabs()
+    {
+        _updatingTabs = true;
+        try
+        {
+            foreach (var tab in _sheetTabs.Tabs.ToArray()) _sheetTabs.RemoveTab(tab.Id);
+            int start = (_workbook.SelectedIndex / _tabPageSize) * _tabPageSize;
+            foreach (var sheet in _workbook.Sheets.Skip(start).Take(_tabPageSize)) _sheetTabs.AddTab(sheet.Id, sheet.Name);
+            _sheetTabs.SelectTab(_workbook.SelectedSheet.Id);
+            _sheetName.Text = _workbook.SelectedSheet.Name;
+        }
+        finally { _updatingTabs = false; }
+        Invalidate(UiInvalidationKind.Measure);
+    }
 
     private StandardMenu CreateMenu()
     {
@@ -212,6 +437,9 @@ public class CellsView : UiElement
         toolbar.AddChild(clearButton);
         if (!_compactMode)
             toolbar.AddChild(autoFitButton);
+        var recalculate = new StandardButton { Text = "Recalculate", AccessibleName = "Recalculate workbook", PreferredSize = new BSize(100, 28) };
+        recalculate.Clicked += (_, _) => TryWorksheetOperation(RecalculateWorkbook);
+        toolbar.AddChild(recalculate);
 
         toolbar.SetBreakBefore(cutButton, UiToolbarBreak.Gap);
         if (!_compactMode)
@@ -224,9 +452,10 @@ public class CellsView : UiElement
     {
         if (_fileAction is not null) { _fileAction("new"); return; }
         var newSheet = new SheetModel(10, 10);
-        _cellControl.SetSheet(newSheet);
+        SetDocument(newSheet);
         _cellControl.SelectCell(new CellPosition(0, 0));
         _currentFilePath = null;
+        _importedWorkbookPath = null;
         _status.Text = "Session only";
         TitleChanged?.Invoke(this, "Broiler Cells");
         Invalidate(UiInvalidationKind.Render);
@@ -241,9 +470,10 @@ public class CellsView : UiElement
     public void SaveDocument()
     {
         if (_fileAction is not null) { _fileAction("export"); return; }
-        if (!string.IsNullOrEmpty(_currentFilePath))
+        if (!string.IsNullOrEmpty(_currentFilePath) && (_importedWorkbookPath is null
+            || !string.Equals(Path.GetFullPath(_currentFilePath), _importedWorkbookPath, StringComparison.OrdinalIgnoreCase)))
         {
-            Save(_currentFilePath);
+            TryFileOperation(() => Save(_currentFilePath));
         }
         else
         {
@@ -265,6 +495,8 @@ public class CellsView : UiElement
         };
         dialog.SetFileTypeFilters([
             new UiFileDialogFilter("CSV Files (*.csv)", "*.csv", ".csv"),
+            new UiFileDialogFilter("Excel Workbooks (*.xlsx)", "*.xlsx", ".xlsx"),
+            new UiFileDialogFilter("OpenDocument Spreadsheets (*.ods)", "*.ods", ".ods"),
             new UiFileDialogFilter("All Files (*.*)", "*.*", ""),
         ]);
 
@@ -275,9 +507,9 @@ public class CellsView : UiElement
             if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
             {
                 if (Session?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
-                    dispatcher.Post(() => Load(path));
+                    dispatcher.Post(() => TryFileOperation(() => Load(path)));
                 else
-                    Load(path);
+                    TryFileOperation(() => Load(path));
                 return true;
             }
         }
@@ -295,11 +527,13 @@ public class CellsView : UiElement
         {
             Title = "Save As",
             Mode = UiFileDialogMode.Save,
-            DefaultExtension = ".csv",
-            FileName = !string.IsNullOrEmpty(_currentFilePath) ? Path.GetFileName(_currentFilePath) : "Spreadsheet.csv",
+            DefaultExtension = _workbook.Sheets.Count > 1 ? ".xlsx" : ".csv",
+            FileName = !string.IsNullOrEmpty(_currentFilePath) ? Path.GetFileName(_currentFilePath) : (_workbook.Sheets.Count > 1 ? "Spreadsheet.xlsx" : "Spreadsheet.csv"),
         };
         dialog.SetFileTypeFilters([
             new UiFileDialogFilter("CSV Files (*.csv)", "*.csv", ".csv"),
+            new UiFileDialogFilter("Excel Workbooks (*.xlsx)", "*.xlsx", ".xlsx"),
+            new UiFileDialogFilter("OpenDocument Spreadsheets (*.ods)", "*.ods", ".ods"),
             new UiFileDialogFilter("All Files (*.*)", "*.*", ""),
         ]);
 
@@ -310,9 +544,9 @@ public class CellsView : UiElement
             if (!string.IsNullOrWhiteSpace(path))
             {
                 if (Session?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
-                    dispatcher.Post(() => Save(path));
+                    dispatcher.Post(() => TryFileOperation(() => Save(path)));
                 else
-                    Save(path);
+                    TryFileOperation(() => Save(path));
                 return true;
             }
         }
@@ -323,9 +557,12 @@ public class CellsView : UiElement
     public void Save(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        SheetCsvSerializer.Save(_cellControl.Sheet, path);
+        if (_importedWorkbookPath is not null && string.Equals(Path.GetFullPath(path), _importedWorkbookPath, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Basic workbook editing cannot overwrite the imported original. Choose a new filename with Save As.");
+        CommitWorksheetEdit();
+        SheetDocumentSerializer.Save(_cellControl.Sheet, path);
         _currentFilePath = path;
-        _status.Text = $"Saved: {Path.GetFileName(path)}";
+        _status.Text = $"Saved: {Path.GetFileName(path)}" + (SheetDocumentSerializer.IsWorkbook(path) ? " (basic workbook; basic formula support)" : string.Empty);
         TitleChanged?.Invoke(this, $"Broiler Cells - {Path.GetFileName(path)}");
         Invalidate(UiInvalidationKind.Render);
     }
@@ -333,13 +570,24 @@ public class CellsView : UiElement
     public void Load(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        SheetModel sheet = SheetCsvSerializer.Load(path);
-        _cellControl.SetSheet(sheet);
+        SheetModel sheet = SheetDocumentSerializer.Load(path);
+        SetDocument(sheet);
         _cellControl.SelectCell(new CellPosition(0, 0));
         _currentFilePath = path;
-        _status.Text = Path.GetFileName(path);
+        _importedWorkbookPath = SheetDocumentSerializer.IsWorkbook(path) ? Path.GetFullPath(path) : null;
+        _status.Text = string.IsNullOrEmpty(sheet.ImportNotice) ? Path.GetFileName(path) : sheet.ImportNotice;
         TitleChanged?.Invoke(this, $"Broiler Cells - {Path.GetFileName(path)}");
         Invalidate(UiInvalidationKind.Render);
+    }
+
+    private void TryFileOperation(Action action)
+    {
+        try { action(); }
+        catch (Exception error) when (error is not OutOfMemoryException)
+        {
+            _status.Text = "File operation failed: " + error.Message;
+            Invalidate(UiInvalidationKind.Render);
+        }
     }
 
     public void CutSelection()
@@ -415,8 +663,12 @@ public class CellsView : UiElement
         return Task.CompletedTask;
     }
 
-    private void OnSelectedCellChanged(object? sender, CellPosition? position) =>
+    private void OnSelectedCellChanged(object? sender, CellPosition? position)
+    {
         _address.Text = position?.ToAddress() ?? string.Empty;
+        if (position is { } cell)
+            _numberFormat.Text = _cellControl.Sheet.GetContent(cell.Row, cell.Column).NumberFormat ?? "General";
+    }
 
     protected override bool OnInput(UiInputEvent input)
     {
@@ -485,12 +737,24 @@ public class CellsView : UiElement
         double toolbarHeight = _toolbar.PreferredSize.Height;
         _toolbar.Measure(new BSize(width, toolbarHeight));
 
+        _sheetTabs.Measure(new BSize(Math.Max(0, width - (width < 760 ? 64 : 390)), 32));
+        _entryModeButton.Measure(new BSize(110, 28));
+        _applyValueButton.Measure(new BSize(100, 28));
+        _numberFormat.Measure(new BSize(160, 28));
+        _applyFormatButton.Measure(new BSize(110, 28));
+        _previousSheet.Measure(new BSize(24, 28));
+        _nextSheet.Measure(new BSize(24, 28));
+        _sheetName.Measure(new BSize(120, 28));
+        _addSheet.Measure(new BSize(30, 28));
+        _renameSheet.Measure(new BSize(70, 28));
+        _removeSheet.Measure(new BSize(100, 28));
+
         double editLineHeight = _cellEditLine.PreferredHeight;
         _cellEditLine.Measure(new BSize(width, editLineHeight));
 
         double contentWidth = Math.Max(0, width - 24);
         double statusHeight = 24;
-        double gridHeight = Math.Max(100, height - menuHeight - toolbarHeight - editLineHeight - statusHeight - 16);
+        double gridHeight = Math.Max(100, height - menuHeight - toolbarHeight - editLineHeight - statusHeight - (width < 760 ? 66 : 34) - (width < 600 ? 64 : 32) - 16);
 
         _cellControl.Measure(new BSize(contentWidth, gridHeight));
         _address.Measure(new BSize(contentWidth / 2, 20));
@@ -517,9 +781,33 @@ public class CellsView : UiElement
         _cellEditLine.Arrange(new BRect(finalRect.Left + 8, y + 2, Math.Max(0, width - 16), editLineHeight));
         y += editLineHeight + 4;
 
+        bool stackedFormat = width < 600;
+        _entryModeButton.Arrange(new BRect(finalRect.Left + 8, y, 110, 28));
+        _applyValueButton.Arrange(new BRect(finalRect.Left + 122, y, 100, 28));
+        double formatX = stackedFormat ? finalRect.Left + 8 : finalRect.Left + 230;
+        double formatY = y + (stackedFormat ? 32 : 0);
+        _numberFormat.Arrange(new BRect(formatX, formatY, Math.Min(160, Math.Max(50, width - 130)), 28));
+        _applyFormatButton.Arrange(new BRect(formatX + Math.Min(160, Math.Max(50, width - 130)) + 4, formatY, 110, 28));
+        y += stackedFormat ? 64 : 32;
+
+        bool stackedSheetBar = width < 760;
+        double sheetBarHeight = stackedSheetBar ? 66 : 34;
         double statusHeight = 24;
+        double sheetBarY = Math.Max(y, finalRect.Bottom - statusHeight - sheetBarHeight);
+        double tabsWidth = Math.Max(0, width - (stackedSheetBar ? 64 : 390));
+        int pageSize = Math.Max(1, (int)(tabsWidth / 110));
+        if (pageSize != _tabPageSize) { _tabPageSize = pageSize; RefreshWorksheetTabs(); }
+        _previousSheet.Arrange(new BRect(finalRect.Left + 8, sheetBarY, 24, 28));
+        _nextSheet.Arrange(new BRect(finalRect.Left + 32, sheetBarY, 24, 28));
+        _sheetTabs.Arrange(new BRect(finalRect.Left + 56, sheetBarY, tabsWidth, 32));
+        double controlsX = stackedSheetBar ? finalRect.Left + 8 : finalRect.Left + 56 + tabsWidth;
+        double controlsY = sheetBarY + (stackedSheetBar ? 32 : 0);
+        _addSheet.Arrange(new BRect(controlsX, controlsY, 30, 28));
+        _sheetName.Arrange(new BRect(controlsX + 32, controlsY, 110, 28));
+        _renameSheet.Arrange(new BRect(controlsX + 144, controlsY, 70, 28));
+        _removeSheet.Arrange(new BRect(controlsX + 216, controlsY, 110, 28));
         double statusY = finalRect.Bottom - statusHeight;
-        double gridHeight = Math.Max(0, statusY - y - 4);
+        double gridHeight = Math.Max(0, sheetBarY - y - 4);
         double contentWidth = Math.Max(0, width - 16);
 
         _cellControl.Arrange(new BRect(finalRect.Left + 8, y, contentWidth, gridHeight));
@@ -529,10 +817,21 @@ public class CellsView : UiElement
         _status.Arrange(new BRect(finalRect.Left + 12 + Math.Max(0, contentWidth - statusWidth), statusY + 2, statusWidth, 20));
     }
 
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && _workbook is not null)
+        {
+            _workbook.StructureChanged -= WorkbookStructureChanged;
+            _workbook.SelectionChanged -= WorkbookSelectionChanged;
+        }
+        base.Dispose(disposing);
+    }
+
     protected override void RenderCore(UiRenderContext context)
     {
         context.RenderList.PushClip(Bounds);
         context.RenderList.FillRect(Bounds, Canvas);
+        UpdateCalculationStatus();
         base.RenderCore(context);
         context.RenderList.PopClip();
     }

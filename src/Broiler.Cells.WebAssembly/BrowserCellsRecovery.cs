@@ -60,10 +60,10 @@ internal static partial class BrowserCellsApp
             var rows = JsonSerializer.Deserialize(payload, SheetJsonContext.Default.StringArrayArray) ?? throw new InvalidDataException("Empty recovery payload.");
             ValidateRecoveryRows(rows);
             var sheet = new SheetModel(rows.Length, rows[0].Length, (r,c) => rows[r][c]);
-            _app.CellControl.SetSheet(sheet); AttachSheet(sheet);
+            _app.View.SetDocument(sheet); AttachSheet(sheet);
             _app.CellControl.SelectCell(new CellPosition(0,0)); _app.CellEditLine.CancelEdit(); _app.CellControl.Grid.Focus();
-            _name = Path.GetFileName(name.Replace('\\','/')); _generation++; _revision++; _modified = true;
-            PublishDocumentState(); BrowserInterop.ReportOperation("Recovered", "Local values restored as modified content. Export a separate backup."); return true;
+            _name = Path.ChangeExtension(Path.GetFileName(name.Replace('\\','/')), ".csv"); _generation++; _revision++; _modified = true;
+            PublishDocumentState(); BrowserInterop.ReportOperation("Recovered", "Only the visible worksheet values were recovered as CSV. Workbook sheets, formulas and formatting are not part of recovery. Export a separate backup."); return true;
         } catch (Exception error) when (error is not OutOfMemoryException) {
             BrowserInterop.ReportOperation("Failed", "Recovery failed; current sheet retained. " + error.Message); return false;
         }

@@ -2,6 +2,8 @@
   <ItemGroup>
     <PackageReference Include="Broiler.Documents" />
     <PackageReference Include="Broiler.Documents.Csv" />
+    <PackageReference Include="Broiler.Documents.Xlsx" />
+    <PackageReference Include="Broiler.Documents.Ods" />
     <PackageReference Include="Broiler.Documents.Model" />
   </ItemGroup>
 </Project>

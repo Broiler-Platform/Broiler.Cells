@@ -137,9 +137,10 @@ public sealed class CellEditLine : UiElement
 
     public void CancelEdit()
     {
+        _cellControl?.CancelEdit();
         if (_cellControl is { SelectedCell: { } pos })
         {
-            _editBox.Text = _cellControl.Sheet[pos.Row, pos.Column];
+            _editBox.Text = _cellControl.Sheet.GetEditText(pos.Row, pos.Column);
         }
         else
         {
@@ -174,7 +175,7 @@ public sealed class CellEditLine : UiElement
     {
         if (_cellControl?.SelectedCell == e.Position)
         {
-            _editBox.Text = e.NewValue;
+            _editBox.Text = _cellControl.Sheet.GetEditText(e.Position.Row, e.Position.Column);
         }
     }
 
@@ -183,7 +184,7 @@ public sealed class CellEditLine : UiElement
         if (position is { } pos && _cellControl is not null)
         {
             _addressLabel.Text = pos.ToAddress();
-            _editBox.Text = _cellControl.Sheet[pos.Row, pos.Column];
+            _editBox.Text = _cellControl.Sheet.GetEditText(pos.Row, pos.Column);
         }
         else
         {

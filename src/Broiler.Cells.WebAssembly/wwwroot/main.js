@@ -322,7 +322,7 @@ document.getElementById('cells-export').addEventListener('close', async event =>
         if (!prepared) return;
         const [name, base64] = prepared.split('\0');
         const binary = atob(base64), bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
-        const url = URL.createObjectURL(new Blob([bytes], { type: 'text/csv;charset=utf-8' }));
+        const url = URL.createObjectURL(new Blob([bytes], { type: name.toLowerCase().endsWith('.xlsx') ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : name.toLowerCase().endsWith('.ods') ? 'application/vnd.oasis.opendocument.spreadsheet' : 'text/csv;charset=utf-8' }));
         const anchor = document.createElement('a'); anchor.href = url; anchor.download = name;
         document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
         cellsExports.ExportCompleted('ExportInitiated', '');
@@ -337,7 +337,7 @@ function requestOpenFile(accept) {
     filePicker.addEventListener('change', async () => {
         try {
             const file = filePicker.files?.[0]; if (!file) { reportOperation('Canceled', 'Open canceled; sheet retained.'); return; }
-            if (file.size > 2 * 1024 * 1024) throw new Error('CSV exceeds the 2 MiB file limit.');
+            if (file.size > 2 * 1024 * 1024) throw new Error('Spreadsheet exceeds the 2 MiB file limit.');
             const bytes = new Uint8Array(await file.arrayBuffer());
             if (generation !== selectedGeneration || revision !== selectedRevision) throw new Error('The sheet changed while the picker was open.');
             let binary = ''; for (let offset=0; offset<bytes.length; offset+=32768) binary += String.fromCharCode(...bytes.subarray(offset,offset+32768));

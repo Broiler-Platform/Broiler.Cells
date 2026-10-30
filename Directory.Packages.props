@@ -3,11 +3,13 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Broiler.Documents" Version="0.1.0-preview.28" />
-    <PackageVersion Include="Broiler.Documents.Model" Version="0.1.0-preview.28" />
-    <PackageVersion Include="Broiler.Documents.Csv" Version="0.1.0-preview.28" />
-    <PackageVersion Include="Broiler.Graphics" Version="0.1.0-preview.14" />
-    <PackageVersion Include="Broiler.Graphics.Windows" Version="0.1.0-preview.14" />
+    <PackageVersion Include="Broiler.Documents" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Documents.Model" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Documents.Xlsx" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Documents.Ods" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Documents.Csv" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Graphics" Version="0.1.0-preview.15" />
+    <PackageVersion Include="Broiler.Graphics.Windows" Version="0.1.0-preview.15" />
     <PackageVersion Include="Broiler.Graphics.Linux" Version="0.1.0-preview.14" />
     <PackageVersion Include="Broiler.Graphics.Linux.OpenGL" Version="0.1.0-preview.14" />
     <PackageVersion Include="Broiler.Graphics.WebAssembly" Version="0.1.0-preview.14" />
@@ -20,19 +22,20 @@
     <PackageVersion Include="Broiler.Input.Linux" Version="0.1.0-preview.7" />
     <PackageVersion Include="Broiler.Input.Mouse.Linux" Version="0.1.0-preview.7" />
     <PackageVersion Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.16" />
-    <PackageVersion Include="Broiler.UI" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.ScrollView.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.Label.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.Edit.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.Menu.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.Toolbar.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.Tooltip.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.FileDialog.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.Button.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Broiler.UI.Window.Standard" Version="0.1.0-preview.23" />
+    <PackageVersion Include="Broiler.UI.TabView.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.ScrollView.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.Label.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.Edit.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.Menu.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.Toolbar.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.Tooltip.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.FileDialog.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.Button.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.Window.Standard" Version="0.1.0-preview.24" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />

@@ -1,9 +1,9 @@
 # Broiler Cells
 
 Broiler Cells is a minimal spreadsheet application in the Broiler family: a grid
-for displaying text, editing it, identifying cells by address, and saving/loading spreadsheets as CSV.
+for displaying text, editing it, identifying cells by address, and saving/loading CSV, XLSX and ODS spreadsheets.
 
-**Status: Version 3 implemented with Menu and CSV persistence, runnable on Windows.**
+**Status: Version 3 implemented with Menu, CSV persistence and basic XLSX/ODS support, runnable on Windows.**
 The application displays, edits, and annotates spreadsheets using coordinate labels (A–CV, 1–100),
 active-cell address tracking, a standard menu bar (File and Help), and CSV table serialization powered
 by `Broiler.Documents.Csv`. The model, serialization, and cell control are separate, platform-neutral libraries.
@@ -29,9 +29,9 @@ The roadmap ends at Version 3. Each version builds on the previous one.
 - **Menu Bar**:
   - **File**:
     - **New** (`Ctrl+N`): Creates a new spreadsheet.
-    - **Open** (`Ctrl+O`): Prompts with standard file dialog to open and deserialize a CSV file.
-    - **Save** (`Ctrl+S`): Saves to current CSV file or prompts Save as.
-    - **Save as** (`Ctrl+Shift+S`): Prompts with standard file dialog to save CSV file.
+    - **Open** (`Ctrl+O`): Prompts with standard file dialog to open a CSV, XLSX or ODS file.
+    - **Save** (`Ctrl+S`): Saves to the current file or prompts Save As; imported workbooks require a new filename.
+    - **Save as** (`Ctrl+Shift+S`): Prompts with standard file dialog to save a CSV, XLSX or ODS file.
     - **Close** (`Ctrl+W`): Closes current document and resets to empty session.
     - **Exit** (`Alt+F4`): Closes the application.
   - **Help**:
@@ -105,3 +105,9 @@ cells.
 
 The sample is defined in `CellsWindow.cs`; sheets up to 100 × 100 can be supplied
 through `new SheetModel(rows, columns, initialValue)`.
+
+ODS/XLSX support and remaining work are described in [Spreadsheet file support](docs/spreadsheet-file-support.md).
+
+Worksheet tabs support selecting, adding, renaming and removing sheets. Workbook exports retain edits across all sheets; CSV exports the selected sheet only.
+
+Cells supports Auto/Text/Number/Boolean/Date/Error/Formula entry modes and basic number formatting. Same-worksheet formulas use the Documents evaluator; cross-sheet references remain unsupported. See [Formula integration](docs/formula-integration.md).

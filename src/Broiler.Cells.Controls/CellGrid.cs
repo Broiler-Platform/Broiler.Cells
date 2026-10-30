@@ -465,6 +465,26 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         InvalidateRender();
     }
 
+    public CellEntryMode EntryMode { get; set; } = CellEntryMode.Auto;
+    public string? LastInputError { get; private set; }
+    public event EventHandler<string>? InputRejected;
+
+    private bool ApplyInput(int row, int column, string text, bool force = false)
+    {
+        try
+        {
+            Sheet.SetInput(row, column, text, EntryMode, force);
+            LastInputError = null;
+            return true;
+        }
+        catch (Exception error) when (error is FormatException or ArgumentException)
+        {
+            LastInputError = error.Message;
+            InputRejected?.Invoke(this, error.Message);
+            return false;
+        }
+    }
+
     public void CommitEdit()
     {
         if (!_isEditing)
@@ -475,12 +495,14 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         string oldValue = Sheet[row, col];
         string newValue = _editor.Text;
 
+        if (newValue != Sheet.GetEditText(row, col) && !ApplyInput(row, col, newValue)) return;
+        LastInputError = null;
         _isEditing = false;
         _editor.Visibility = UiVisibility.Collapsed;
         _editor.Arrange(BRect.Empty);
         MoveChildToBack(_editor);
 
-        Sheet[row, col] = newValue;
+        newValue = Sheet[row, col];
         _semanticCells[row, col].UpdateValue(newValue);
 
         CellCommitted?.Invoke(this, new CellCommittedEventArgs(new CellPosition(row, col), oldValue, newValue));
@@ -489,7 +511,7 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         InvalidateRender();
     }
 
-    public void SetCellValue(CellPosition position, string value)
+    public void SetCellValue(CellPosition position, string value, bool force = false)
     {
         int row = position.Row;
         int col = position.Column;
@@ -500,7 +522,7 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
 
         value ??= string.Empty;
         string oldValue = Sheet[row, col];
-        if (oldValue == value)
+        if (!force && Sheet.GetEditText(row, col) == value)
             return;
 
         if (_isEditing && _editingRow == row && _editingCol == col)
@@ -508,14 +530,22 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
             _editor.Text = value;
         }
 
-        Sheet[row, col] = value;
+        if (!ApplyInput(row, col, value, force)) return;
+        value = Sheet[row, col];
         _semanticCells[row, col].UpdateValue(value);
         CellCommitted?.Invoke(this, new CellCommittedEventArgs(position, oldValue, value));
         InvalidateRender();
     }
 
+    public void RefreshCellDisplay(CellPosition position)
+    {
+        _semanticCells[position.Row, position.Column].UpdateValue(Sheet[position.Row, position.Column]);
+        Invalidate(UiInvalidationKind.Render | UiInvalidationKind.Semantic);
+    }
+
     public void CancelEdit()
     {
+        LastInputError = null;
         if (!_isEditing)
             return;
 
@@ -523,7 +553,8 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         _editor.Visibility = UiVisibility.Collapsed;
         _editor.Arrange(BRect.Empty);
         MoveChildToBack(_editor);
-        _editor.Text = Sheet[_editingRow, _editingCol];
+        _editor.Text = Sheet.GetEditText(_editingRow, _editingCol);
+        LastInputError = null;
 
         Session?.SetFocus(this);
         InvalidateRender();
@@ -699,7 +730,7 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
             if (isDouble)
             {
                 SelectCell(clicked);
-                StartEditing(Sheet[clicked.Row, clicked.Column]);
+                StartEditing(Sheet.GetEditText(clicked.Row, clicked.Column));
                 return true;
             }
 
@@ -778,7 +809,7 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         {
             if (SelectedCell is { } selected)
             {
-                StartEditing(Sheet[selected.Row, selected.Column]);
+                StartEditing(Sheet.GetEditText(selected.Row, selected.Column));
                 return true;
             }
             return false;
@@ -908,6 +939,7 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
             return base.GetSemanticNodeCore() with
             {
                 Role = UiSemanticRole.Label,
+                Name = $"Row {_row + 1}, column {_column + 1}: {(_grid.Sheet[_row, _column].Length == 0 ? "Empty" : _grid.Sheet[_row, _column])}",
                 State = state,
             };
         }

@@ -171,7 +171,7 @@ internal static partial class BrowserCellsApp
     {
         _dispatcher?.Drain();
         if (_host is null || _app is null) return string.Empty;
-        CommitPendingEdits();
+        if (!CommitPendingEdits()) return string.Empty;
         _host.BeginClipboardEvent(operation == "paste" ? text : null);
         try {
             if (operation == "copy") _app.View.CopySelection();
@@ -223,8 +223,10 @@ internal static partial class BrowserCellsApp
 
     internal static void Dispose()
     {
+        if (_observedWorkbook is not null) _observedWorkbook.Changed -= SheetChanged;
         if (_observedSheet is not null) _observedSheet.Changed -= SheetChanged;
         _observedSheet = null;
+        _observedWorkbook = null;
         _dispatcher = null;
         _app?.Dispose();
         _app = null;

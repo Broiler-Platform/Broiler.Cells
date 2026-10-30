@@ -66,15 +66,15 @@
         <div id="error"></div>
     </div>
 </main>
-<details class="limits"><summary>CSV edition: limits and unsupported features</summary><p>CSV only · Up to 100 × 100 cells · 2 MiB/file · 16,384 characters/cell · 250,000 total at import/export · String values; formulas are not calculated. Clipboard: one cell. Undo: active text edit only. Browser-local checkpoints are available in Recovery; export a separate backup.</p></details>
+<details class="limits"><summary>Spreadsheet edition: limits and unsupported features</summary><p>CSV, XLSX and ODS · Worksheet tabs with add, rename and remove · Up to 100 × 100 cells · 2 MiB/file · 16,384 characters/cell · 250,000 total at import/export · Typed values and basic number formats; same-worksheet formulas calculate automatically; unsupported formulas show errors. Clipboard: one cell. Undo: active text edit only. Browser-local checkpoints are available in Recovery; export a separate backup.</p></details>
 <p id="cells-operation" role="status" aria-live="polite">Changes stay in this tab until exported. Downloads do not confirm disk persistence.</p>
 <dialog id="cells-confirm" aria-labelledby="cells-confirm-title"><form method="dialog">
     <h2 id="cells-confirm-title">Keep your changes?</h2><p>The sheet has modified content. Export keeps it open. Discard continues and loses those changes.</p>
     <button value="export">Export and keep open</button><button value="discard">Discard</button><button value="cancel" autofocus>Cancel</button>
 </form></dialog>
 <dialog id="cells-export" aria-labelledby="cells-export-title"><form method="dialog">
-    <h2 id="cells-export-title">Export CSV</h2><label for="cells-filename">Filename</label><input id="cells-filename" required maxlength="180" value="Spreadsheet.csv">
-    <p>CSV preserves string values, including formula-like text. Other spreadsheet programs may interpret that text as formulas.</p>
+    <h2 id="cells-export-title">Export spreadsheet</h2><label for="cells-filename">Filename</label><input id="cells-filename" required maxlength="180" value="Spreadsheet.csv">
+    <p>Choose a .csv, .xlsx or .ods filename. Workbook import/export supports a basic subset; originals should be kept as backups. CSV preserves string values, including formula-like text. Other spreadsheet programs may interpret that text as formulas.</p>
     <button value="export">Export</button><button value="cancel" formnovalidate>Cancel</button>
 </form></dialog>
 

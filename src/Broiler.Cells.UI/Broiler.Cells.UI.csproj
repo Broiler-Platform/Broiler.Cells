@@ -6,6 +6,7 @@
     <ProjectReference Include="../Broiler.Cells.Core/Broiler.Cells.Core.csproj" />
     <ProjectReference Include="../Broiler.Cells.Controls/Broiler.Cells.Controls.csproj" />
     <PackageReference Include="Broiler.Graphics" />
+    <PackageReference Include="Broiler.UI.TabView.Standard" />
     <PackageReference Include="Broiler.UI" />
     <PackageReference Include="Broiler.UI.Standard" />
     <PackageReference Include="Broiler.UI.Toolbar.Standard" />

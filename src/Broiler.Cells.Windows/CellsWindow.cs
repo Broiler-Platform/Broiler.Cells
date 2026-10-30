@@ -20,7 +20,7 @@ using Broiler.UI.Window.Standard;
 
 namespace Broiler.Cells.Windows;
 
-internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiImageHost
+internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiImageHost, IUiWindowHost, IUiClipboardHost
 {
     [DllImport("user32.dll", ExactSpelling = true)]
     private static extern nint LoadCursorW(nint hInstance, nint lpCursorName);
@@ -32,6 +32,8 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiI
     private static extern short GetKeyState(int virtualKey);
 
     private nint _activeCursorHandle;
+    private readonly List<CellsHostWindow> _dialogWindows = [];
+    private WindowsClipboard? _clipboard;
     private readonly UiSession _session;
     private readonly CellsView _view;
     private readonly StandardWindow _rootWindow;
@@ -92,6 +94,52 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiI
     void IUiHost.Invalidate(UiInvalidation invalidation) => Invalidate();
     void IUiHost.Present(BRenderList renderList) { } // The native window presents BuildRenderList's result.
 
+    public IUiHostWindow CreateHostWindow(UiHostWindowRequest request)
+    {
+        var window = new CellsHostWindow(ToScreenPlacement(request), this,
+            () => _clipboard is not null && _clipboard.TryGetText(out string text) ? text : null,
+            text => _clipboard?.SetText(text));
+        _dialogWindows.Add(window);
+        window.Closed += (_, _) => _dialogWindows.Remove(window);
+        window.Show();
+        return window;
+    }
+
+    private UiHostWindowRequest ToScreenPlacement(UiHostWindowRequest request)
+    {
+        if (request.Placement.IsEmpty || NativeHandle == 0)
+            return request;
+        var origin = default(NativePoint);
+        if (!ClientToScreen(NativeHandle, ref origin))
+            return request;
+        double scale = DpiScale > 0 ? DpiScale : 1;
+        var placement = request.Placement;
+        return request with
+        {
+            Placement = new BRect(origin.X / scale + placement.X, origin.Y / scale + placement.Y,
+                placement.Width, placement.Height),
+        };
+    }
+
+    bool IUiClipboardHost.TryGetText(out string text)
+    {
+        text = string.Empty;
+        return _clipboard is not null && _clipboard.TryGetText(out text);
+    }
+
+    void IUiClipboardHost.SetText(string text) => _clipboard?.SetText(text);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        public int X;
+        public int Y;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ClientToScreen(nint hwnd, ref NativePoint point);
+
     BImageHandle IUiImageHost.CreateImage(ReadOnlySpan<byte> encodedImage)
     {
         try
@@ -124,6 +172,7 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiI
 
     protected override void OnCreated()
     {
+        _clipboard = new WindowsClipboard(NativeHandle);
         _inputBridge = new WindowsInputBridge(NativeHandle, RenderNativeHandle, _session,
             scaleProvider: () => DpiScale, invalidateAction: Invalidate);
         _automation = new WindowsAutomationBridge(RenderNativeHandle, _session, _rootWindow, () => DpiScale);
@@ -223,6 +272,9 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiI
     {
         if (disposing)
         {
+            foreach (var window in _dialogWindows.ToArray())
+                window.Dispose();
+            _dialogWindows.Clear();
             _automation?.Dispose();
             _inputBridge?.Dispose();
             _session.Dispose();
