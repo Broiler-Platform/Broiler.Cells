@@ -4,3 +4,6 @@
 artifacts/
 TestResults/
 *.user
+
+node_modules/
+__pycache__/
