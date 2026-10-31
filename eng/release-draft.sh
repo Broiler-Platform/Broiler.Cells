@@ -31,6 +31,11 @@ version=${1:?usage: eng/release-draft.sh <version> <artifacts-dir>}
 artifacts=${2:?usage: eng/release-draft.sh <version> <artifacts-dir>}
 tag="cells-v$version"
 out=$(mktemp -d)
+trap 'rm -rf "$out"' EXIT
+: "${PUBLISH_WINDOWS:=true}" "${PUBLISH_LINUX:=true}" "${PUBLISH_ANDROID:=true}" "${PUBLISH_WEB:=true}" "${CREATE_DRAFT:=true}"
+if [ "$PUBLISH_WINDOWS$PUBLISH_LINUX$PUBLISH_ANDROID$PUBLISH_WEB" = falsefalsefalsefalse ]; then
+  echo 'Select at least one publish target.' >&2; exit 1
+fi
 
 # Python writes the zip so the Unix mode is recorded explicitly instead of read from the
 # file system, which on Windows has no executable bit to read.
@@ -74,6 +79,8 @@ python=$(command -v python3 || command -v python) || { echo "needs python3" >&2;
 # the whole assignment, not one element of an array literal.
 desktop_assets=()
 for rid in win-x64 linux-x64; do
+  if [ "$rid" = win-x64 ] && [ "$PUBLISH_WINDOWS" != true ]; then continue; fi
+  if [ "$rid" = linux-x64 ] && [ "$PUBLISH_LINUX" != true ]; then continue; fi
   if [ "$rid" = win-x64 ]; then executable=Broiler.Cells.Windows.exe; else executable=Broiler.Cells.Linux; fi
   for variant in self-contained framework-dependent; do
     zip=$(asset "$rid" "$variant" "$executable")
@@ -81,26 +88,38 @@ for rid in win-x64 linux-x64; do
   done
 done
 
+web_assets=()
+if [ "$PUBLISH_WEB" = true ]; then
 web_source="$artifacts/broiler-cells-web-$version"
-web_zip="$web_source/Broiler.Cells-$version-browser-wasm.zip"
+web_zip="$out/Broiler.Cells-$version-browser-wasm.zip"
 web_metadata="$web_source/Broiler.Cells-$version-browser-wasm.web-artifact.json"
 web_sums="$web_source/Broiler.Cells-$version-browser-wasm.SHA256SUMS.txt"
-"$python" eng/web/artifact.py verify --archive "$web_zip" --metadata "$web_metadata" --require-release --product cell --version "$version" --tag "$tag" --commit "$(git rev-parse HEAD)" --repository "${GITHUB_REPOSITORY:-Broiler-Platform/Broiler.Cells}"
-# Keep the new web descriptor separate from the existing desktop component schema.
+"$python" eng/web/artifact.py verify --archive "$web_source/$(basename "$web_zip")" --metadata "$web_metadata" --require-release --product cell --version "$version" --tag "$tag" --commit "$(git rev-parse HEAD)" --repository "${GITHUB_REPOSITORY:-Broiler-Platform/Broiler.Cells}"
+cp "$web_source/$(basename "$web_zip")" "$web_zip"
 web_assets=("$web_zip" "$web_metadata" "$web_sums")
+
+fi
 
 android_dir="$artifacts/broiler-cells-android-$version"
 aab="$android_dir/Broiler.Cells-$version.aab"
 apk="$android_dir/Broiler.Cells-$version-arm64.apk"
 android_assets=()
 android_rows=''
-if [ -d "$android_dir" ]; then
+if [ "$PUBLISH_ANDROID" = true ]; then
   for f in "$aab" "$apk"; do [ -f "$f" ] || { echo "missing $f" >&2; exit 1; }; done
   android_assets=("$aab" "$apk")
   android_rows="| Android (arm64) | \`Broiler.Cells-$version-arm64.apk\` | install on the device (sideload) |
 | Android | \`Broiler.Cells-$version.aab\` | app bundle for Google Play (arm64 + x86_64) |"
 fi
 
+desktop_rows=''
+for path in "${desktop_assets[@]}"; do
+  desktop_rows+="| Desktop | \`$(basename "$path")\` | extract the complete ZIP |"$'\n'
+done
+web_rows=''
+if [ "$PUBLISH_WEB" = true ]; then
+  web_rows="| WebAssembly | \`Broiler.Cells-$version-browser-wasm.zip\` | complete static browser application |"
+fi
 cat > "$out/notes.md" <<EOF
 Broiler Cells **$version**, a preview build for evaluation and testing, not for
 production use.
@@ -109,10 +128,8 @@ production use.
 
 | Platform | File | Run |
 | --- | --- | --- |
-| Windows x64 | \`Broiler.Cells-$version-win-x64-self-contained.zip\` | unzip, start \`Broiler.Cells.Windows.exe\` |
-| Windows x64 | \`Broiler.Cells-$version-win-x64-framework-dependent.zip\` | install the .NET 10 runtime, unzip into a folder, start \`Broiler.Cells.Windows.exe\` |
-| Linux x64 | \`Broiler.Cells-$version-linux-x64-self-contained.zip\` | unzip, run \`./Broiler.Cells.Linux\` (X11) |
-| Linux x64 | \`Broiler.Cells-$version-linux-x64-framework-dependent.zip\` | install the .NET 10 runtime, unzip into a folder, run \`./Broiler.Cells.Linux\` (X11) |
+$desktop_rows
+$web_rows
 $android_rows
 
 The **self-contained** zips hold a single NativeAOT executable: no .NET runtime to install,
@@ -134,9 +151,11 @@ fi
 
 "$python" eng/write-component-manifest.py --directory "$out" --product cell --version "$version" --repository Broiler-Platform/Broiler.Cells --tag "$tag" --commit "$(git rev-parse HEAD)" --self-contained-mode native-aot --additional "${android_assets[@]}"
 
+draft_args=()
+if [ "$CREATE_DRAFT" = true ]; then draft_args+=(--draft); fi
 gh release create "$tag" "${desktop_assets[@]}" "${android_assets[@]}" "${web_assets[@]}" "$out/component-release.json" "$out/SHA256SUMS.txt" \
   --verify-tag \
-  --draft \
+  "${draft_args[@]}" \
   --prerelease \
   --title "Broiler Cells $version" \
   --notes-file "$out/notes.md" \
