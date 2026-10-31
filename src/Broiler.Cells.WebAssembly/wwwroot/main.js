@@ -122,6 +122,10 @@ function attachInput() {
     statusLine = document.getElementById('cells-status');
     setupTextInput();
 
+    // The app draws its own context menu. Keep native menus elsewhere on the page.
+    for (const target of [canvas, textInput])
+        addListener(target, 'contextmenu', event => event.preventDefault());
+
     addListener(canvas, 'pointerdown', event => {
         try { canvas.setPointerCapture?.(event.pointerId); } catch { }
         const { x, y } = localPoint(event);

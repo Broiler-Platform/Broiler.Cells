@@ -8,12 +8,12 @@
     <PackageVersion Include="Broiler.Documents.Xlsx" Version="0.1.0-preview.31" />
     <PackageVersion Include="Broiler.Documents.Ods" Version="0.1.0-preview.31" />
     <PackageVersion Include="Broiler.Documents.Csv" Version="0.1.0-preview.31" />
-    <PackageVersion Include="Broiler.Graphics" Version="0.1.0-preview.15" />
-    <PackageVersion Include="Broiler.Graphics.Windows" Version="0.1.0-preview.15" />
+    <PackageVersion Include="Broiler.Graphics" Version="0.1.0-preview.16" />
+    <PackageVersion Include="Broiler.Graphics.Windows" Version="0.1.0-preview.16" />
     <PackageVersion Include="Broiler.Graphics.Linux" Version="0.1.0-preview.14" />
     <PackageVersion Include="Broiler.Graphics.Linux.OpenGL" Version="0.1.0-preview.14" />
     <PackageVersion Include="Broiler.Graphics.WebAssembly" Version="0.1.0-preview.14" />
-    <PackageVersion Include="Broiler.Hosting.Windows" Version="0.1.0-preview.10" />
+    <PackageVersion Include="Broiler.Hosting.Windows" Version="0.1.0-preview.12" />
     <PackageVersion Include="Broiler.Hosting.Linux" Version="0.1.0-preview.10" />
     <PackageVersion Include="Broiler.Hosting.Android" Version="0.1.0-preview.10" />
     <PackageVersion Include="Broiler.Input.Android" Version="0.1.0-preview.7" />
