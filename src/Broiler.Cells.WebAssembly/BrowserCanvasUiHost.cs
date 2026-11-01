@@ -130,6 +130,9 @@ internal sealed class BrowserCanvasUiHost :
             _caret = null;
     }
 
+    // Clipboard contents are acquired only by an explicit Paste operation.
+    public bool CanQueryTextSynchronously => false;
+
     public bool TryGetText(out string text)
     {
         text = _clipboardEventActive ? _clipboardReadText ?? string.Empty : string.Empty;
