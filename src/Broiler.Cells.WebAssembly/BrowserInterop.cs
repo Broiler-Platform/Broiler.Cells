@@ -7,6 +7,9 @@ namespace Broiler.Cells.WebAssembly;
 /// </summary>
 internal static partial class BrowserInterop
 {
+    [JSImport("cells.webMenu", "main.js")]
+    internal static partial void WebMenu(string action);
+
     [JSImport("cells.openUrl", "main.js")]
     internal static partial void OpenUrl(string url);
 

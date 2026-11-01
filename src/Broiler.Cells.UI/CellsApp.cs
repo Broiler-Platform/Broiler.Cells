@@ -39,7 +39,8 @@ public sealed class CellsApp : IDisposable
         bool compactMode = false,
         Action<string>? setWindowTitle = null,
         Action<Uri>? openUrl = null,
-        Action<string>? fileAction = null)
+        Action<string>? fileAction = null,
+        Action<string>? webAction = null)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _requestClose = requestClose ?? throw new ArgumentNullException(nameof(requestClose));
@@ -51,7 +52,7 @@ public sealed class CellsApp : IDisposable
             .Build(_host);
 
         SheetModel sheet = initialSheet ?? CreateDefaultSheet();
-        _view = new CellsView(sheet, compactMode: _compactMode, fileAction: fileAction)
+        _view = new CellsView(sheet, compactMode: _compactMode, fileAction: fileAction, webAction: webAction)
         {
             OpenUrl = openUrl,
             ViewportProvider = () => _host.ViewportSize,

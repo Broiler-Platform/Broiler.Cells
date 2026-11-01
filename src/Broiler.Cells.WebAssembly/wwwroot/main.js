@@ -1,3 +1,4 @@
+import { createOfficeWebMenu } from './office.web-menu.js';
 import { OfficeRecovery } from './broiler.recovery.js';
 export const officeInputProtocolVersion = 1;
 if (location.origin === 'https://broiler-platform.github.io') document.querySelector('.office-nav a').href = '/demo/';
@@ -11,7 +12,7 @@ const CURSORS = {
 const EDITOR_CTRL_KEYS = new Set(['z', 'y', 'a', 's', 'o', 'n', 'w']);
 
 let cellsExports;
-let recovery;
+let recovery, officeWebMenu;
 let canvas;
 let textInput;
 let host;
@@ -39,6 +40,8 @@ function setStatus(text, failed) {
 }
 
 function showError(message) {
+    document.querySelector('.office-nav').hidden = false;
+    document.body.classList.remove('office-menu-ready');
     const panel = document.getElementById('error-panel');
     const body = document.getElementById('error');
     if (body) body.textContent = message;
@@ -236,12 +239,14 @@ const { setModuleImports, getAssemblyExports, runMain } = await dotnet.create();
 
 setModuleImports('main.js', {
     cells: {
+        webMenu: action => officeWebMenu?.show(action),
         openUrl: url => { window.open(url, '_blank', 'noopener,noreferrer'); },
         scheduleFrame: () => scheduleFrame(),
         setCursor: cursor => { if (canvas) canvas.style.cursor = CURSORS[cursor] || 'default'; },
         setTitle: title => { document.title = title; },
         ready: (logicalWidth, logicalHeight) => {
             attachInput();
+            officeWebMenu.ready();
             started = true;
             observedWidth = Math.max(1, Math.round(host.clientWidth || logicalWidth));
             observedHeight = Math.max(1, Math.round(host.clientHeight || logicalHeight));
@@ -288,6 +293,8 @@ recovery = new OfficeRecovery({
     acceptFormat: format => format === 'cells-json',
 });
 
+
+officeWebMenu = createOfficeWebMenu({ product: 'cell', recovery });
 
 runMain().catch(error => {
     showError(error instanceof Error ? error.stack ?? error.message : String(error));

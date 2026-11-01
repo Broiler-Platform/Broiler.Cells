@@ -64,7 +64,8 @@ internal static partial class BrowserCellsApp
             requestClose: static () => { },
             setWindowTitle: BrowserInterop.SetTitle,
             openUrl: url => BrowserInterop.OpenUrl(url.AbsoluteUri),
-            fileAction: FileAction);
+            fileAction: FileAction,
+            webAction: BrowserInterop.WebMenu);
         AttachSheet(_app.CellControl.Sheet);
         _app.View.ClipboardCommand = operation => {
             if (_host.IsClipboardEventActive) return false;

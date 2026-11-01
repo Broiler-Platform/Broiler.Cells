@@ -76,7 +76,7 @@ public class CellsView : UiElement
     private string? _pendingRemoval;
 
 
-    public CellsView(SheetModel sheet, bool compactMode = false, Action<string>? fileAction = null)
+    public CellsView(SheetModel sheet, bool compactMode = false, Action<string>? fileAction = null, Action<string>? webAction = null)
     {
         ArgumentNullException.ThrowIfNull(sheet);
         _compactMode = compactMode;
@@ -97,7 +97,7 @@ public class CellsView : UiElement
         _dispatcher.Add(new StandardCommand("help.about", () => ShowAbout()));
         _dispatcher.Add(new StandardCommand("help.info", () => ShowAbout()));
 
-        _menu = CreateMenu();
+        _menu = CreateMenu(webAction);
         _toolbar = CreateToolbar();
 
         _cellControl = new CellControl(sheet, isEditingEnabled: true, areHeadersVisible: true);
@@ -346,7 +346,7 @@ public class CellsView : UiElement
         Invalidate(UiInvalidationKind.Measure);
     }
 
-    private StandardMenu CreateMenu()
+    private StandardMenu CreateMenu(Action<string>? webAction)
     {
         var menu = new StandardMenu
         {
@@ -368,7 +368,18 @@ public class CellsView : UiElement
         var helpMenu = new UiMenuItem("menu.help", "Help") { AccessKey = 'H' };
         helpMenu.Children.Add(new UiMenuItem("help.about", "About") { AccessKey = 'A', CommandName = "help.about" });
 
-        menu.SetItems([fileMenu, helpMenu]);
+        if (webAction is not null) {
+            var officeMenu = new UiMenuItem("menu.office", "Office") { AccessKey = 'I' };
+            foreach (var (id, label) in new[] { ("home", "Back to Office"), ("recovery", "Recovery…"), ("information", "Spreadsheet information…") }) {
+                string action = id;
+                string command = "office." + id;
+                _dispatcher.Add(new StandardCommand(command, () => webAction(action)));
+                officeMenu.Children.Add(new UiMenuItem(command, label) { CommandName = command });
+            }
+            menu.SetItems([fileMenu, officeMenu, helpMenu]);
+        } else {
+            menu.SetItems([fileMenu, helpMenu]);
+        }
         return menu;
     }
 
