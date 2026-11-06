@@ -57,22 +57,22 @@ public class CellsView : UiElement
     private string? _currentFilePath;
     private readonly Action<string>? _fileAction;
     private string? _importedWorkbookPath;
-    private readonly StandardTabView _sheetTabs = new() { HeaderHeight = 32, AccessibleName = "Worksheets" };
-    private readonly StandardEdit _sheetName = new() { AccessibleName = "Worksheet name" };
-    private readonly StandardButton _addSheet = new() { Text = "+", AccessibleName = "Add worksheet" };
-    private readonly StandardButton _renameSheet = new() { Text = "Rename" };
-    private readonly StandardButton _removeSheet = new() { Text = "Remove" };
+    private readonly StandardTabView _sheetTabs = new() { HeaderHeight = 32, AccessibleName = "Worksheets", ToolTipText = "Worksheet tabs" };
+    private readonly StandardEdit _sheetName = new() { AccessibleName = "Worksheet name", ToolTipText = "Worksheet name" };
+    private readonly StandardButton _addSheet = new() { Text = "+", AccessibleName = "Add worksheet", ToolTipText = "Add worksheet" };
+    private readonly StandardButton _renameSheet = new() { Text = "Rename", ToolTipText = "Rename worksheet" };
+    private readonly StandardButton _removeSheet = new() { Text = "Remove", ToolTipText = "Remove worksheet" };
     private readonly System.Collections.Generic.Dictionary<string, CellPosition> _sheetSelections = [];
     private WorkbookModel _workbook = null!;
     private WorksheetModel? _displayedWorksheet;
-    private readonly StandardButton _previousSheet = new() { Text = "‹", AccessibleName = "Previous worksheet" };
-    private readonly StandardButton _nextSheet = new() { Text = "›", AccessibleName = "Next worksheet" };
+    private readonly StandardButton _previousSheet = new() { Text = "‹", AccessibleName = "Previous worksheet", ToolTipText = "Previous worksheet" };
+    private readonly StandardButton _nextSheet = new() { Text = "›", AccessibleName = "Next worksheet", ToolTipText = "Next worksheet" };
     private int _tabPageSize = 4;
     private bool _updatingTabs;
-    private readonly StandardButton _entryModeButton = new() { Text = "Type: Auto", AccessibleName = "Cell entry mode" };
-    private readonly StandardButton _applyValueButton = new() { Text = "Apply value" };
-    private readonly StandardEdit _numberFormat = new() { Text = "General", AccessibleName = "Number format" };
-    private readonly StandardButton _applyFormatButton = new() { Text = "Apply format" };
+    private readonly StandardButton _entryModeButton = new() { Text = "Type: Auto", AccessibleName = "Cell entry mode", ToolTipText = "Cycle cell entry mode" };
+    private readonly StandardButton _applyValueButton = new() { Text = "Apply value", ToolTipText = "Apply cell value" };
+    private readonly StandardEdit _numberFormat = new() { Text = "General", AccessibleName = "Number format", ToolTipText = "Number format code" };
+    private readonly StandardButton _applyFormatButton = new() { Text = "Apply format", ToolTipText = "Apply number format" };
     private string? _pendingRemoval;
 
 
@@ -109,10 +109,12 @@ public class CellsView : UiElement
 
         _address = new StandardLabel(_cellControl.SelectedAddress ?? string.Empty, StandardLabelRole.Default)
         {
+            ToolTipText = "Current cell address",
             Font = new BFontStyle("Segoe UI", 12)
         };
         _status = new StandardLabel("Session only", StandardLabelRole.Muted)
         {
+            ToolTipText = "Document persistence status",
             Font = new BFontStyle("Segoe UI", 12)
         };
 
@@ -390,6 +392,7 @@ public class CellsView : UiElement
 
         var toolbar = new StandardToolbar
         {
+            ToolTipText = "Spreadsheet toolbar",
             Title = "Spreadsheet toolbar",
             PreferredSize = new BSize(0, _compactMode ? 48 : 38),
             Orientation = UiToolbarOrientation.Horizontal,
@@ -448,7 +451,7 @@ public class CellsView : UiElement
         toolbar.AddChild(clearButton);
         if (!_compactMode)
             toolbar.AddChild(autoFitButton);
-        var recalculate = new StandardButton { Text = "Recalculate", AccessibleName = "Recalculate workbook", PreferredSize = new BSize(100, 28) };
+        var recalculate = new StandardButton { Text = "Recalculate", AccessibleName = "Recalculate workbook", ToolTipText = "Recalculate workbook (F9)", PreferredSize = new BSize(100, 28) };
         recalculate.Clicked += (_, _) => TryWorksheetOperation(RecalculateWorkbook);
         toolbar.AddChild(recalculate);
 

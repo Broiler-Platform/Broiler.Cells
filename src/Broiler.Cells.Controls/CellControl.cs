@@ -36,6 +36,7 @@ public sealed class CellControl : UiElement, IStandardThemedControl
         ArgumentNullException.ThrowIfNull(sheet);
         _areHeadersVisible = areHeadersVisible;
         AccessibleName = "Sheet control";
+        ToolTipText = "Spreadsheet grid";
 
         _grid = new CellGrid(sheet, isEditingEnabled) { AreHeadersVisible = areHeadersVisible };
         _grid.SelectedCellChanged += (_, pos) => SelectedCellChanged?.Invoke(this, pos);

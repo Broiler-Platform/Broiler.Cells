@@ -39,9 +39,11 @@ public sealed class CellEditLine : UiElement
     public CellEditLine()
     {
         AccessibleName = "Cell edit line";
+        ToolTipText = "Cell formula line";
 
         _addressLabel = new StandardLabel(string.Empty, StandardLabelRole.Default)
         {
+            ToolTipText = "Cell address",
             Font = new BFontStyle("Segoe UI", 12, BFontWeight.SemiBold),
             Foreground = _theme.Text,
             AccessibleName = "Cell address",
@@ -49,6 +51,7 @@ public sealed class CellEditLine : UiElement
 
         _fxLabel = new StandardLabel("fx", StandardLabelRole.Muted)
         {
+            ToolTipText = "Formula marker (fx)",
             Font = new BFontStyle("Segoe UI", 13, BFontWeight.SemiBold, BFontSlant.Italic),
             Foreground = BColor.FromArgb(255, 120, 130, 142),
             AccessibleName = "Formula marker",
@@ -56,6 +59,7 @@ public sealed class CellEditLine : UiElement
 
         _editBox = new StandardEdit
         {
+            ToolTipText = "Formula and cell content editor",
             Font = new BFontStyle("Segoe UI", 13),
             CornerRadius = 3,
             PaddingX = 6,

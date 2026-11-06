@@ -148,4 +148,34 @@ public sealed class ToolbarAndEditLineTests
         control.SetCellValue(new CellPosition(0, 0), "World");
         Assert.Equal("Hello", editLine.Text);
     }
+
+    [Fact]
+    public void ControlsAndToolbarHaveTooltips()
+    {
+        var sheet = new SheetModel(5, 5);
+        var view = new CellsView(sheet);
+
+        Assert.Equal("Spreadsheet toolbar", view.Toolbar.ToolTipText);
+        Assert.Equal("Spreadsheet grid", view.CellControl.ToolTipText);
+        Assert.Equal("Cell formula line", view.CellEditLine.ToolTipText);
+
+        var save = System.Linq.Enumerable.FirstOrDefault(System.Linq.Enumerable.OfType<StandardButton>(view.Toolbar.Children), b => b.Text == "Save");
+        Assert.NotNull(save);
+        Assert.Equal("Save / export (Ctrl+S)", save.ToolTipText);
+
+        var recalc = System.Linq.Enumerable.FirstOrDefault(System.Linq.Enumerable.OfType<StandardButton>(view.Toolbar.Children), b => b.Text == "Recalculate");
+        Assert.NotNull(recalc);
+        Assert.Equal("Recalculate workbook (F9)", recalc.ToolTipText);
+    }
+
+    [Fact]
+    public void CellsAppManagesTooltipTickingOnDispatch()
+    {
+        bool ticking = false;
+        var host = new CellsUiHost(() => new BSize(800, 600), () => 1.0, () => { }, _ => { });
+        using var app = new CellsApp(host, () => { }, setTicking: t => ticking = t);
+
+        Assert.False(app.WantsTick);
+        Assert.False(ticking);
+    }
 }

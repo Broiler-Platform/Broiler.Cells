@@ -30,7 +30,9 @@ public sealed class CellsApp : IDisposable
     private readonly CellsView _view;
     private readonly Action _requestClose;
     private readonly Action<string>? _setWindowTitle;
+    private readonly Action<bool>? _setTicking;
     private readonly bool _compactMode;
+    private bool _isTicking;
 
     public CellsApp(
         CellsUiHost host,
@@ -40,11 +42,13 @@ public sealed class CellsApp : IDisposable
         Action<string>? setWindowTitle = null,
         Action<Uri>? openUrl = null,
         Action<string>? fileAction = null,
-        Action<string>? webAction = null)
+        Action<string>? webAction = null,
+        Action<bool>? setTicking = null)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _requestClose = requestClose ?? throw new ArgumentNullException(nameof(requestClose));
         _setWindowTitle = setWindowTitle;
+        _setTicking = setTicking;
         _compactMode = compactMode;
 
         _session = new StandardUiSessionBuilder()
@@ -100,7 +104,43 @@ public sealed class CellsApp : IDisposable
 
     public BRenderList RenderFrame() => _session.RenderFrame();
 
-    public bool Dispatch(UiInputEvent input) => _session.DispatchInput(input);
+    public bool Dispatch(UiInputEvent input)
+    {
+        bool handled = _session.DispatchInput(input);
+        UpdateTooltip(input);
+        return handled;
+    }
+
+    public void AnimationTick()
+    {
+        if (_tooltips.Tick())
+            _host.RequestInvalidate();
+
+        SyncTicking();
+    }
+
+    public bool WantsTick => _tooltips.IsWaiting;
+
+    private void UpdateTooltip(UiInputEvent input)
+    {
+        bool changed = input.Kind == UiInputEventKind.PointerMove
+            ? _tooltips.PointerMoved(input.Position)
+            : _tooltips.Dismiss();
+
+        SyncTicking();
+        if (changed)
+            _host.RequestInvalidate();
+    }
+
+    private void SyncTicking()
+    {
+        bool wanted = _tooltips.IsWaiting;
+        if (wanted == _isTicking)
+            return;
+
+        _isTicking = wanted;
+        _setTicking?.Invoke(wanted);
+    }
 
     private static SheetModel CreateDefaultSheet()
     {

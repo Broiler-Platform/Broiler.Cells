@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using Broiler.Cells.Core;
+using Broiler.Cells.UI;
+using Broiler.Graphics.Text;
 using Broiler.Graphics.Geometry;
 using Broiler.Graphics.Imaging;
 using Broiler.Graphics.Rendering;
@@ -15,6 +17,7 @@ using Broiler.Input.Keyboard;
 using Broiler.Input.Mouse;
 using Broiler.UI;
 using Broiler.UI.Standard;
+using Broiler.UI.Tooltip.Standard;
 using Broiler.UI.Window;
 using Broiler.UI.Window.Standard;
 
@@ -34,6 +37,10 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiI
     private nint _activeCursorHandle;
     private readonly List<CellsHostWindow> _dialogWindows = [];
     private WindowsClipboard? _clipboard;
+    private const int TooltipTickMilliseconds = 33;
+    private readonly StandardTooltip _tooltip;
+    private readonly StandardTooltipController _tooltips;
+    private bool _isTicking;
     private readonly UiSession _session;
     private readonly CellsView _view;
     private readonly StandardWindow _rootWindow;
@@ -76,6 +83,15 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiI
             BorderThickness = 0,
             Background = CellsView.Canvas,
         };
+        _tooltip = new StandardTooltip
+        {
+            Font = new BFontStyle("Segoe UI", 12),
+            Background = CellsPalette.MenuPopup,
+            Foreground = CellsPalette.Title,
+            BorderColor = CellsPalette.WindowBorder,
+        };
+        _tooltips = new StandardTooltipController(_tooltip);
+
         _rootWindow.AddChild(_view);
         _view.OwnerWindow = _rootWindow;
         _view.ViewportProvider = () => ClientSize;
@@ -84,8 +100,37 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiI
         _view.TitleChanged += (_, newTitle) => SetTitle(newTitle);
 
         _session.AddRoot(_rootWindow);
+        _rootWindow.OpenOwnedWindow(_tooltip, new BRect(0, 0, 1, 1));
+        _tooltip.Deactivate();
+
         StandardThemeController.Apply(_session, CellsView.Theme);
         _view.CellControl.SelectCell(new CellPosition(1, 1));
+    }
+
+    private void SetTicking(bool ticking)
+    {
+        if (ticking)
+            StartAnimationTimer(TooltipTickMilliseconds);
+        else
+            StopAnimationTimer();
+    }
+
+    private void SyncTicking()
+    {
+        bool wanted = _tooltips.IsWaiting;
+        if (wanted == _isTicking)
+            return;
+
+        _isTicking = wanted;
+        SetTicking(wanted);
+    }
+
+    protected override void OnAnimationTick()
+    {
+        if (_tooltips.Tick())
+            Invalidate();
+
+        SyncTicking();
     }
 
     BSize IUiHost.ViewportSize => ClientSize;
@@ -234,7 +279,13 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiI
 
     private void Dispatch(UiInputEvent input)
     {
-        if (_session.DispatchInput(input))
+        bool handled = _session.DispatchInput(input);
+        bool changed = input.Kind == UiInputEventKind.PointerMove
+            ? _tooltips.PointerMoved(input.Position)
+            : _tooltips.Dismiss();
+
+        SyncTicking();
+        if (handled || changed)
             Invalidate();
     }
 
