@@ -270,8 +270,8 @@ public sealed class ResizeTests
 
         BRenderList frame = fixture.Session.RenderFrame();
         var fillRects = frame.Commands.OfType<BRenderCommand.FillRect>().Select(r => r.Rect).ToArray();
-        double expectedX = CellControl.RowHeaderWidth + 150;
-        double expectedY = CellControl.ColumnHeaderHeight + 45;
+        double expectedX = fixture.Control.RowHeaderWidth + 150;
+        double expectedY = fixture.Control.ColumnHeaderHeight + 45;
 
         // Grid lines rendered at expected column and row positions
         Assert.Contains(fillRects, r => r.X == expectedX && r.Width >= 1);

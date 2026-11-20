@@ -9,16 +9,18 @@ internal sealed record SheetCalculationResult(TableEvaluationResult Evaluation, 
 /// <summary>Bounded adapter to Documents' same-table dependency and formula engine.</summary>
 internal static class SheetCalculation
 {
-    internal const int MaximumFormulaCells = 512;
+    internal const int MaximumFormulaCells = int.MaxValue;
     internal const int MaximumFormulaLength = 1024;
     internal const int MaximumDependencyDepth = 128;
+    internal const long MaximumTotalDependencies = 5_000_000;
 
     internal static SheetCalculationResult Evaluate(SheetModel sheet, Func<int, int, CellContent> read)
     {
         var inputs = new Dictionary<CellAddress, CellContent>();
-        for (int row = 0; row < sheet.RowCount; row++)
-        for (int column = 0; column < sheet.ColumnCount; column++)
-            inputs[new CellAddress(row, column)] = read(row, column);
+        foreach (var pos in sheet.PopulatedPositions)
+        {
+            inputs[new CellAddress(pos.Row, pos.Column)] = read(pos.Row, pos.Column);
+        }
         var formulas = inputs.Where(p => p.Value.Formula is not null).ToDictionary(p => p.Key, p => p.Value.Formula!);
         var refused = new HashSet<CellAddress>();
         if (formulas.Count > MaximumFormulaCells) refused.UnionWith(formulas.Keys);
@@ -42,7 +44,12 @@ internal static class SheetCalculation
             var references = TableFormulaEngine.ExtractDependencies(formula, address, sheet.RowCount, sheet.ColumnCount);
             dependencies[address] = references;
             totalDependencies += references.Count;
-            if (totalDependencies > 100_000) { refused.UnionWith(formulas.Keys); break; }
+            if (totalDependencies > MaximumTotalDependencies) { refused.UnionWith(formulas.Keys); break; }
+            foreach (var r in references)
+            {
+                if (!inputs.ContainsKey(r) && r.Row < sheet.RowCount && r.Column < sheet.ColumnCount)
+                    inputs[r] = read(r.Row, r.Column);
+            }
         }
         // Bound recursion even when a long dependency path ends in a cycle.
         var visited = new HashSet<CellAddress>();
@@ -82,22 +89,56 @@ internal static class SheetCalculation
             }
         }
 
-        var rows = new List<TableRow>();
-        for (int row = 0; row < sheet.RowCount; row++)
+        int maxRow = 0;
+        foreach (var addr in inputs.Keys)
         {
-            var cells = new List<TableCell>();
-            for (int column = 0; column < sheet.ColumnCount; column++)
-            {
-                var address = new CellAddress(row, column);
-                var input = inputs[address];
-                cells.Add(new TableCell(0, 0, column,
-                    formula: refused.Contains(address) ? null : input.Formula,
-                    numberFormat: input.NumberFormat,
-                    value: refused.Contains(address) ? CellValue.FromError(FormulaError.Num) : input.Value));
-            }
-            rows.Add(new TableRow(cells));
+            if (addr.Row > maxRow) maxRow = addr.Row;
         }
-        var evaluated = TableFormulaEngine.Evaluate(new DocumentTable(0, 0, rows));
+        int calcRows = Math.Min(sheet.RowCount, maxRow + 1);
+
+        var rowGroups = new Dictionary<int, List<TableCell>>();
+        foreach (var (address, input) in inputs)
+        {
+            if (!rowGroups.TryGetValue(address.Row, out var cellList))
+            {
+                cellList = [];
+                rowGroups[address.Row] = cellList;
+            }
+
+            cellList.Add(new TableCell(0, 0, address.Column,
+                formula: refused.Contains(address) ? null : input.Formula,
+                numberFormat: input.NumberFormat,
+                value: refused.Contains(address) ? CellValue.FromError(FormulaError.Num) : input.Value));
+        }
+
+        var rows = new List<TableRow>(calcRows);
+        for (int row = 0; row < calcRows; row++)
+        {
+            if (rowGroups.TryGetValue(row, out var cells))
+            {
+                cells.Sort((a, b) => a.ColumnIndex.CompareTo(b.ColumnIndex));
+                rows.Add(new TableRow(cells));
+            }
+            else
+            {
+                rows.Add(new TableRow([]));
+            }
+        }
+
+        Func<string, CellAddress, CellValue>? crossSheetLookup = null;
+        if (sheet.Workbook is { } wb)
+        {
+            crossSheetLookup = (sheetName, addr) =>
+            {
+                var target = wb.Sheets.FirstOrDefault(s => string.Equals(s.Name, sheetName, StringComparison.OrdinalIgnoreCase));
+                if (target is null) return CellValue.FromError(FormulaError.Ref);
+                if (addr.Row < 0 || addr.Row >= target.Sheet.RowCount || addr.Column < 0 || addr.Column >= target.Sheet.ColumnCount)
+                    return CellValue.FromError(FormulaError.Ref);
+                return target.Sheet.GetContent(addr.Row, addr.Column).Value;
+            };
+        }
+
+        var evaluated = TableFormulaEngine.Evaluate(new DocumentTable(0, 0, rows), crossSheetLookup: crossSheetLookup);
         var issues = new List<FormulaIssue>();
         foreach (var address in formulas.Keys)
         {
@@ -105,8 +146,9 @@ internal static class SheetCalculation
             if (!value.IsError) continue;
             string message = refused.Contains(address) ? "Formula exceeds Cells calculation limits."
                 : value.Error == FormulaError.Name ? "Unsupported function or unknown name."
-                : value.Error == FormulaError.Syntax ? "Invalid or unsupported formula syntax; cross-sheet references are not supported."
+                : value.Error == FormulaError.Syntax ? "Invalid or unsupported formula syntax."
                 : value.Error == FormulaError.Cycle ? "Circular formula dependency."
+                : value.Error == FormulaError.Ref ? "Referenced cell or sheet does not exist or is unsupported."
                 : "Calculation returned " + value.Error.ToErrorString();
             issues.Add(new FormulaIssue(new CellPosition(address.Row, address.Column), value.Error, message));
         }

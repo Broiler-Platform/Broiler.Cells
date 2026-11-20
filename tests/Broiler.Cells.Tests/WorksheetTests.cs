@@ -133,4 +133,47 @@ public sealed class WorksheetTests
         Assert.Single(view.WorksheetTabs.Tabs);
         Assert.Equal("Sheet1", view.Workbook.SelectedSheet.Name);
     }
+
+    [Theory]
+    [InlineData(2, 2, 4, 4, 3, 3)]
+    [InlineData(3, 3, 5, 5, 2, 4)]
+    public void SwitchingFromLargerSheetWithOutOfBoundsSelectionBackToSmallerSheetSucceeds(
+        int firstRows, int firstCols,
+        int secondRows, int secondCols,
+        int selectedRow, int selectedCol)
+    {
+        var first = new SheetModel(firstRows, firstCols);
+        var second = new SheetModel(secondRows, secondCols);
+        var workbook = new WorkbookModel(first, "Sheet1");
+        workbook.Add("Sheet2", second);
+        workbook.Select(0);
+
+        using var view = new CellsView(first);
+        view.Measure(new BSize(800, 600));
+        view.Arrange(new BRect(0, 0, 800, 600));
+
+        // Switch to larger second sheet and select a coordinate outside the first sheet's bounds.
+        view.SelectWorksheet(1);
+        view.Measure(new BSize(800, 600));
+        view.Arrange(new BRect(0, 0, 800, 600));
+        var outOfBoundsForFirst = new CellPosition(selectedRow, selectedCol);
+        view.CellControl.SelectCell(outOfBoundsForFirst);
+        Assert.Equal(outOfBoundsForFirst, view.CellControl.SelectedCell);
+
+        // Switch back to the smaller first sheet via both SelectWorksheet and tab selection.
+        view.SelectWorksheet(0);
+        Assert.Same(first, view.CellControl.Sheet);
+        Assert.Equal(new CellPosition(0, 0), view.CellControl.SelectedCell);
+        view.Measure(new BSize(800, 600));
+        view.Arrange(new BRect(0, 0, 800, 600));
+
+        // Switch back to second sheet and verify selection is restored, then switch via tab back to first.
+        view.WorksheetTabs.SelectTab(workbook.Sheets[1].Id);
+        Assert.Same(second, view.CellControl.Sheet);
+        Assert.Equal(outOfBoundsForFirst, view.CellControl.SelectedCell);
+
+        view.WorksheetTabs.SelectTab(workbook.Sheets[0].Id);
+        Assert.Same(first, view.CellControl.Sheet);
+        Assert.Equal(new CellPosition(0, 0), view.CellControl.SelectedCell);
+    }
 }

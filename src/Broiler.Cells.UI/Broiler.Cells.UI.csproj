@@ -18,6 +18,7 @@
     <PackageReference Include="Broiler.UI.Label.Standard" />
     <PackageReference Include="Broiler.UI.Edit.Standard" />
     <PackageReference Include="Broiler.UI.Window.Standard" />
+    <PackageReference Include="Broiler.UI.PrintDialog.Standard" />
     <PackageReference Include="Broiler.Media.Image.Managed" />
   </ItemGroup>
 </Project>

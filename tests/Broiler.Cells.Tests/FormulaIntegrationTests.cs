@@ -49,6 +49,12 @@ public sealed class FormulaIntegrationTests
     [InlineData("=AVERAGE(A1:A2)", "3")]
     [InlineData("=CONCAT(\"hello\",\" world\")", "hello world")]
     [InlineData("=ROUND(1.234,2)", "1.23")]
+    [InlineData("=LEFT(\"test\",2)", "te")]
+    [InlineData("=RIGHT(\"test\",2)", "st")]
+    [InlineData("=MID(\"testing\",4,3)", "tin")]
+    [InlineData("=YEAR(DATE(2026,5,20))", "2026")]
+    [InlineData("=MONTH(DATE(2026,5,20))", "5")]
+    [InlineData("=DAY(DATE(2026,5,20))", "20")]
     public void SupportedFunctionsUseTheDocumentsEvaluator(string formula, string expected)
     {
         var sheet = new SheetModel(2, 2);
@@ -56,6 +62,26 @@ public sealed class FormulaIntegrationTests
         sheet.SetInput(1, 0, "2", CellEntryMode.Number);
         sheet.SetInput(0, 1, formula, CellEntryMode.Formula);
         Assert.Equal(expected, sheet[0, 1]);
+    }
+
+    [Fact]
+    public void LookupFunctionsEvaluateInWorksheet()
+    {
+        var sheet = new SheetModel(5, 5);
+        sheet.SetInput(0, 0, "10", CellEntryMode.Number);
+        sheet.SetInput(0, 1, "Apples", CellEntryMode.Text);
+        sheet.SetInput(1, 0, "20", CellEntryMode.Number);
+        sheet.SetInput(1, 1, "Oranges", CellEntryMode.Text);
+
+        sheet.SetInput(2, 0, "=VLOOKUP(20, A1:B2, 2, FALSE)", CellEntryMode.Formula);
+        sheet.SetInput(2, 1, "=INDEX(A1:B2, 1, 2)", CellEntryMode.Formula);
+        sheet.SetInput(2, 2, "=MATCH(20, A1:A2, 0)", CellEntryMode.Formula);
+        sheet.SetInput(2, 3, "=COUNTIF(A1:A2, \">15\")", CellEntryMode.Formula);
+
+        Assert.Equal("Oranges", sheet[2, 0]);
+        Assert.Equal("Apples", sheet[2, 1]);
+        Assert.Equal("2", sheet[2, 2]);
+        Assert.Equal("1", sheet[2, 3]);
     }
 
     [Fact]
@@ -121,5 +147,75 @@ public sealed class FormulaIntegrationTests
         restored.SetInput(0, 0, "8", CellEntryMode.Number);
         Assert.Equal("24", restored[0, 1]);
         Assert.Empty(restored.FormulaIssues);
+    }
+
+    [Fact]
+    public void CrossSheetFormulasEvaluateAcrossWorkbookAndReactToChanges()
+    {
+        var sheet1 = new SheetModel(2, 2);
+        var workbook = new WorkbookModel(sheet1, "Summary");
+        var sheet2 = new SheetModel(2, 2);
+        workbook.Add("Data", sheet2);
+
+        sheet2.SetInput(0, 0, "15", CellEntryMode.Number);
+        sheet1.SetInput(0, 0, "=Data!A1 * 2", CellEntryMode.Formula);
+
+        Assert.Equal("30", sheet1[0, 0]);
+        Assert.Equal(30d, sheet1.GetContent(0, 0).Value.Number);
+        Assert.Empty(sheet1.FormulaIssues);
+
+        // Edit referenced sheet and assert referencing sheet updates
+        sheet2.SetInput(0, 0, "25", CellEntryMode.Number);
+        Assert.Equal("50", sheet1[0, 0]);
+        Assert.Equal(50d, sheet1.GetContent(0, 0).Value.Number);
+    }
+
+    [Fact]
+    public void CrossSheetRangeAndQuotedNamesEvaluate()
+    {
+        var sheet1 = new SheetModel(2, 2);
+        var workbook = new WorkbookModel(sheet1, "Totals");
+        var sheet2 = new SheetModel(3, 1);
+        workbook.Add("Q1 Sales", sheet2);
+
+        sheet2.SetInput(0, 0, "100", CellEntryMode.Number);
+        sheet2.SetInput(1, 0, "200", CellEntryMode.Number);
+        sheet2.SetInput(2, 0, "300", CellEntryMode.Number);
+
+        sheet1.SetInput(0, 0, "=SUM('Q1 Sales'!A1:A3)", CellEntryMode.Formula);
+
+        Assert.Equal("600", sheet1[0, 0]);
+        Assert.Equal(600d, sheet1.GetContent(0, 0).Value.Number);
+        Assert.Empty(sheet1.FormulaIssues);
+    }
+
+    [Fact]
+    public void LargeFormulaCountsExceeding512EvaluateAccurately()
+    {
+        const int count = 1200;
+        var sheet = new SheetModel(count, 2);
+        for (int i = 0; i < count; i++)
+        {
+            sheet.SetInput(i, 0, (i + 1).ToString(), CellEntryMode.Number);
+            sheet.SetInput(i, 1, $"=A{i + 1} * 2", CellEntryMode.Formula);
+        }
+
+        Assert.Empty(sheet.FormulaIssues);
+        Assert.Equal("2", sheet[0, 1]);
+        Assert.Equal("1000", sheet[499, 1]);
+        Assert.Equal("2400", sheet[count - 1, 1]);
+        Assert.Equal(2400d, sheet.GetContent(count - 1, 1).Value.Number);
+    }
+
+    [Fact]
+    public void FormulasInSparseDistantCellsEvaluateFastWithoutDenseAllocations()
+    {
+        var sheet = new SheetModel(50_000, 200);
+        sheet.SetInput(0, 0, "42", CellEntryMode.Number);
+        sheet.SetInput(49_999, 199, "=A1 * 3", CellEntryMode.Formula);
+
+        Assert.Empty(sheet.FormulaIssues);
+        Assert.Equal("126", sheet[49_999, 199]);
+        Assert.Equal(126d, sheet.GetContent(49_999, 199).Value.Number);
     }
 }

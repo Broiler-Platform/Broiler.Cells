@@ -8,11 +8,11 @@ public sealed class SheetModelTests
     [Theory]
     [InlineData(0, 1)]
     [InlineData(-1, 1)]
-    [InlineData(101, 1)]
+    [InlineData(1048577, 1)]
     [InlineData(int.MaxValue, 1)]
     [InlineData(1, 0)]
     [InlineData(1, -1)]
-    [InlineData(1, 101)]
+    [InlineData(1, 16385)]
     [InlineData(1, int.MaxValue)]
     public void InvalidDimensionsFailBeforeCallingInitializer(int rows, int columns)
     {
@@ -77,5 +77,15 @@ public sealed class SheetModelTests
         Assert.Equal("Last", sheet[99, 99]);
         Assert.Equal("Last", sheet[new CellPosition(99, 99)]);
         Assert.Equal(string.Empty, sheet[50, 50]);
+    }
+
+    [Fact]
+    public void LargeDimensionsCanBeInstantiatedWithSparseStorage()
+    {
+        var sheet = new SheetModel(100_000, 50);
+        sheet[99_999, 49] = "LargeCorner";
+        Assert.Equal("LargeCorner", sheet[99_999, 49]);
+        Assert.Equal(string.Empty, sheet[50_000, 25]);
+        Assert.Single(sheet.PopulatedPositions);
     }
 }

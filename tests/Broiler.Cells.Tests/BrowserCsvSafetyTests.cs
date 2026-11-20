@@ -10,14 +10,14 @@ public class BrowserCsvSafetyTests
     public void StrictLoadRejectsRowsInsteadOfClipping()
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(string.Join("\r\n", Enumerable.Repeat("value", 101))));
-        Assert.Throws<InvalidDataException>(() => SheetCsvSerializer.Load(stream, rejectDataLoss: true));
+        Assert.Throws<InvalidDataException>(() => SheetCsvSerializer.Load(stream, maxRows: 100, rejectDataLoss: true));
     }
 
     [Fact]
     public void StrictLoadRejectsColumnsInsteadOfClipping()
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(string.Join(",", Enumerable.Repeat("value", 101))));
-        Assert.Throws<InvalidDataException>(() => SheetCsvSerializer.Load(stream, rejectDataLoss: true));
+        Assert.Throws<InvalidDataException>(() => SheetCsvSerializer.Load(stream, maxColumns: 100, rejectDataLoss: true));
     }
 
     [Fact]

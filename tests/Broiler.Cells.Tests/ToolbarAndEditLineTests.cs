@@ -178,4 +178,54 @@ public sealed class ToolbarAndEditLineTests
         Assert.False(app.WantsTick);
         Assert.False(ticking);
     }
+
+    [Fact]
+    public void ToolbarContainsFormattingActionButtons()
+    {
+        var sheet = new SheetModel(5, 5);
+        var view = new CellsView(sheet);
+
+        Assert.Contains(view.Toolbar.Children, c => c is StandardButton btn && btn.Text == "B");
+        Assert.Contains(view.Toolbar.Children, c => c is StandardButton btn && btn.Text == "I");
+        Assert.Contains(view.Toolbar.Children, c => c is StandardButton btn && btn.Text == "U");
+        Assert.Contains(view.Toolbar.Children, c => c is StandardButton btn && btn.Text == "Left");
+        Assert.Contains(view.Toolbar.Children, c => c is StandardButton btn && btn.Text == "Center");
+        Assert.Contains(view.Toolbar.Children, c => c is StandardButton btn && btn.Text == "Right");
+        Assert.Contains(view.Toolbar.Children, c => c is StandardButton btn && btn.Text == "Fill");
+    }
+
+    [Fact]
+    public void FormattingActionsToggleFontStyleAndAlignment()
+    {
+        var sheet = new SheetModel(3, 3);
+        var view = new CellsView(sheet);
+        view.CellControl.SelectCell(new CellPosition(1, 1));
+
+        // Bold toggle
+        Assert.False(sheet.GetContent(1, 1).Font.Bold);
+        view.ToggleBoldSelected();
+        Assert.True(sheet.GetContent(1, 1).Font.Bold);
+        view.ToggleBoldSelected();
+        Assert.False(sheet.GetContent(1, 1).Font.Bold);
+
+        // Italic toggle
+        view.ToggleItalicSelected();
+        Assert.True(sheet.GetContent(1, 1).Font.Italic);
+
+        // Underline toggle
+        view.ToggleUnderlineSelected();
+        Assert.True(sheet.GetContent(1, 1).Font.Underline);
+
+        // Alignment
+        view.SetSelectedAlignment(Broiler.Documents.Model.TextAlignment.Center);
+        Assert.Equal(Broiler.Documents.Model.TextAlignment.Center, sheet.GetContent(1, 1).Alignment);
+
+        // Shading / Fill toggle
+        var yellow = Broiler.Graphics.Color.BColor.FromArgb(255, 255, 255, 153);
+        Assert.Equal(0, sheet.GetContent(1, 1).Shading.A);
+        view.ToggleSelectedFill(yellow);
+        Assert.Equal(yellow, sheet.GetContent(1, 1).Shading);
+        view.ToggleSelectedFill(yellow);
+        Assert.Equal(0, sheet.GetContent(1, 1).Shading.A);
+    }
 }

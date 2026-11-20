@@ -1,4 +1,7 @@
 using System.Runtime.InteropServices;
+using Broiler.Graphics.Imaging;
+using Broiler.Media;
+using Broiler.Media.Image.Managed;
 
 namespace Broiler.Cells.Windows;
 
@@ -8,6 +11,7 @@ internal static class Program
     private static int Main()
     {
         _ = SetProcessDpiAwarenessContext(new nint(-4));
+        BImageCodecs.Use(new MediaCodecCatalog(ManagedImageCodecs.CreateCodecs()));
         try
         {
             using var window = new CellsWindow();

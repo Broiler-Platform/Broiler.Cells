@@ -30,7 +30,22 @@ public sealed class WorkbookModel
         return entry;
     }
 
-    private void OnCellChanged(object? sender, EventArgs args) => Changed?.Invoke(this, EventArgs.Empty);
+    private void OnCellChanged(object? sender, EventArgs args)
+    {
+        foreach (var entry in _sheets)
+        {
+            if (!ReferenceEquals(entry.Sheet, sender))
+                entry.Sheet.Recalculate();
+        }
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public bool TryGetSheet(string name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SheetModel? sheet)
+    {
+        var ws = _sheets.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+        sheet = ws?.Sheet;
+        return sheet is not null;
+    }
 
     public void Select(int index)
     {

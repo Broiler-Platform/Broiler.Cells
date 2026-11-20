@@ -128,6 +128,50 @@ public sealed class SelectionTests
     }
 
     [Fact]
+    public void SetSheetToSmallerDimensionsClearsOutOfBoundsSelectionAndHoverWithoutThrowing()
+    {
+        using var f = new Fixture();
+        f.Move(f.Cell(4, 4));
+        f.Control.SelectCell(new CellPosition(3, 3));
+        Assert.Equal(new CellPosition(4, 4), f.Control.Grid.HoveredCell);
+        Assert.Equal(new CellPosition(3, 3), f.Control.SelectedCell);
+
+        var smaller = new SheetModel(2, 2);
+        var priorSemanticChildren = f.Control.Grid.Children.ToArray();
+        f.Control.SetSheet(smaller);
+
+        Assert.Same(smaller, f.Control.Sheet);
+        Assert.Null(f.Control.SelectedCell);
+        Assert.Null(f.Control.Grid.HoveredCell);
+        f.Session.RenderFrame();
+        var semantic = f.Control.Grid.GetSemanticNode();
+        Assert.Equal(4, semantic.Children.Count);
+
+        // Host accessibility bridges (e.g. WindowsAutomationBridge) may still query
+        // detached semantic cell elements from the larger sheet during tree updates.
+        foreach (var child in priorSemanticChildren)
+        {
+            var node = child.GetSemanticNode();
+            Assert.NotNull(node.Name);
+        }
+    }
+
+    [Fact]
+    public void SetSheetUsesNewSheetHiddenColumnStateForOffsets()
+    {
+        var first = new SheetModel(2, 2);
+        first.SetColumnHidden(1, true);
+        using var f = new Fixture();
+        f.Control.SetSheet(first);
+        Assert.Equal(0, f.Control.Grid.GetColumnWidth(1));
+
+        var second = new SheetModel(4, 4);
+        f.Control.SetSheet(second);
+        Assert.Equal(CellGrid.DefaultCellWidth, f.Control.Grid.GetColumnWidth(1));
+        Assert.Equal(CellGrid.DefaultCellWidth * 2, f.Control.Grid.GetColumnOffset(2));
+    }
+
+    [Fact]
     public void CellDragCommitsEditorAndHeaderSelectionReplacesRectangle()
     {
         using var f = new Fixture();

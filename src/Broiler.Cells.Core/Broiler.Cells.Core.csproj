@@ -5,5 +5,8 @@
     <PackageReference Include="Broiler.Documents.Xlsx" />
     <PackageReference Include="Broiler.Documents.Ods" />
     <PackageReference Include="Broiler.Documents.Model" />
+    <PackageReference Include="Broiler.Documents.Pagination" />
+    <PackageReference Include="Broiler.Documents.Pdf" />
+    <PackageReference Include="Broiler.Documents.Html" />
   </ItemGroup>
 </Project>

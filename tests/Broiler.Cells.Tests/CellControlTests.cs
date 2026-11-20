@@ -16,8 +16,6 @@ namespace Broiler.Cells.Tests;
 public sealed class CellControlTests
 {
 
-
-
     [Theory]
     [InlineData(0, "A")]
     [InlineData(25, "Z")]
@@ -158,8 +156,8 @@ public sealed class CellControlTests
 
         // Header elements maintain fixed bounds
         // Column headers Y remains at 0, row headers X remains at 0
-        Assert.Equal(CellControl.RowHeaderWidth, fixture.Control.ScrollView.Bounds.X);
-        Assert.Equal(CellControl.ColumnHeaderHeight, fixture.Control.ScrollView.Bounds.Y);
+        Assert.Equal(fixture.Control.RowHeaderWidth, fixture.Control.ScrollView.Bounds.X);
+        Assert.Equal(fixture.Control.ColumnHeaderHeight, fixture.Control.ScrollView.Bounds.Y);
     }
 
     [Fact]
@@ -175,8 +173,8 @@ public sealed class CellControlTests
 #pragma warning restore CS0618
 
         // Click on Column Header area (e.g., column C header at X = RowHeaderWidth + 2.5 * CellWidth, Y = 10)
-        double colHeaderX = CellControl.RowHeaderWidth + 2.5 * CellGrid.CellWidth;
-        double colHeaderY = CellControl.ColumnHeaderHeight / 2;
+        double colHeaderX = fixture.Control.RowHeaderWidth + 2.5 * CellGrid.CellWidth;
+        double colHeaderY = fixture.Control.ColumnHeaderHeight / 2;
         fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(colHeaderX, colHeaderY), BMouseButtons.Left, BMouseButtons.Left)));
         fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(colHeaderX, colHeaderY), BMouseButtons.None, BMouseButtons.Left)));
 
@@ -184,8 +182,8 @@ public sealed class CellControlTests
         Assert.Equal(new[] { 2 }, fixture.Control.SelectedColumns);
 
         // Click on Row Header area (e.g., row 5 header at X = RowHeaderWidth / 2, Y = ColumnHeaderHeight + 4.5 * CellHeight)
-        double rowHeaderX = CellControl.RowHeaderWidth / 2;
-        double rowHeaderY = CellControl.ColumnHeaderHeight + 4.5 * CellGrid.CellHeight;
+        double rowHeaderX = fixture.Control.RowHeaderWidth / 2;
+        double rowHeaderY = fixture.Control.ColumnHeaderHeight + 4.5 * CellGrid.CellHeight;
         fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(rowHeaderX, rowHeaderY), BMouseButtons.Left, BMouseButtons.Left)));
         fixture.Session.DispatchInput(input.FromPointerButton(new BPointerEventArgs(new BPoint(rowHeaderX, rowHeaderY), BMouseButtons.None, BMouseButtons.Left)));
 
@@ -237,8 +235,8 @@ public sealed class CellControlTests
         fixture.Control.AreHeadersVisible = true;
         fixture.Session.RenderFrame();
 
-        Assert.Equal(CellControl.RowHeaderWidth, fixture.Control.ScrollView.Bounds.X);
-        Assert.Equal(CellControl.ColumnHeaderHeight, fixture.Control.ScrollView.Bounds.Y);
+        Assert.Equal(fixture.Control.RowHeaderWidth, fixture.Control.ScrollView.Bounds.X);
+        Assert.Equal(fixture.Control.ColumnHeaderHeight, fixture.Control.ScrollView.Bounds.Y);
         Assert.Equal("ModifiedValue", sheet[2, 3]);
     }
 

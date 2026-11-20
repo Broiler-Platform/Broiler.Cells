@@ -107,6 +107,277 @@ public static class CellsIcons
         pen.Triangle(10, 6, 10, 10, 12, 8);
     }
 
+    public static void Bold(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Column(3.5, 2.5, 11, 2.4);
+        pen.Bar(3.5, 3.5, 5, 2.0);
+        pen.Bar(3.5, 8.0, 5, 2.0);
+        pen.Bar(3.5, 12.5, 5, 2.0);
+        pen.Column(8.5, 3.5, 4.5, 2.0);
+        pen.Column(8.5, 8.0, 4.5, 2.0);
+    }
+
+    public static void Italic(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Bar(6, 3, 6, 1.8);
+        pen.Line(10, 3, 6, 13, 2.0);
+        pen.Bar(4, 13, 6, 1.8);
+    }
+
+    public static void Underline(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Column(4, 2.5, 7.5, 1.8);
+        pen.Column(10.2, 2.5, 7.5, 1.8);
+        pen.Bar(4, 10, 8, 1.8);
+        pen.Bar(3, 13.5, 10, 1.5);
+    }
+
+    public static void AlignLeft(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Bar(2.5, 4, 11, 1.6);
+        pen.Bar(2.5, 8, 7, 1.6);
+        pen.Bar(2.5, 12, 10, 1.6);
+    }
+
+    public static void AlignCenter(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Bar(2.5, 4, 11, 1.6);
+        pen.Bar(4.5, 8, 7, 1.6);
+        pen.Bar(3.5, 12, 9, 1.6);
+    }
+
+    public static void AlignRight(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Bar(2.5, 4, 11, 1.6);
+        pen.Bar(6.5, 8, 7, 1.6);
+        pen.Bar(3.5, 12, 10, 1.6);
+    }
+
+    public static void FillColor(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Outline(3, 4, 10, 8, 1.4);
+        pen.Bar(2, 13.5, 12, 2.2);
+    }
+
+    public static void MergeCells(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Outline(2.5, 3.5, 11, 9, 1.3);
+        pen.Line(3.5, 8, 6.5, 8, 1.2);
+        pen.Triangle(5.5, 6.5, 5.5, 9.5, 7.5, 8);
+        pen.Line(12.5, 8, 9.5, 8, 1.2);
+        pen.Triangle(10.5, 6.5, 10.5, 9.5, 8.5, 8);
+    }
+
+    public static void Print(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Outline(4.5, 1.5, 7, 3.5, 1.1);
+        pen.Outline(2, 4.5, 12, 6.0, Stroke);
+        pen.Outline(4, 8.5, 8, 5.5, 1.1);
+        pen.Rect(11.5, 6, 1.2, 1.2);
+        pen.Line(5.5, 10.5, 10.5, 10.5, 0.9);
+        pen.Line(5.5, 12.0, 9.5, 12.0, 0.9);
+    }
+
+    public static void Search(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Circle(2.5, 2.5, 7.5, 1.4);
+        pen.Line(8.8, 8.8, 13.5, 13.5, 1.8);
+    }
+
+    public static void Replace(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Line(3.0, 4.5, 12.0, 4.5, 1.4);
+        pen.Triangle(9.5, 2.5, 13.5, 4.5, 9.5, 6.5);
+        pen.Line(13.0, 11.5, 4.0, 11.5, 1.4);
+        pen.Triangle(6.5, 9.5, 2.5, 11.5, 6.5, 13.5);
+    }
+
+    public static void Currency(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Column(8, 2, 12, 1.4);
+        pen.Bar(5.5, 4.5, 5.0, 1.4);
+        pen.Column(5.5, 4.5, 3.5, 1.4);
+        pen.Bar(5.5, 8.0, 5.0, 1.4);
+        pen.Column(10.5, 8.0, 3.5, 1.4);
+        pen.Bar(5.5, 11.5, 5.0, 1.4);
+    }
+
+    public static void Percent(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Line(12, 3.5, 4, 12.5, 1.5);
+        pen.Circle(3.5, 3.5, 3.5, 1.1);
+        pen.Circle(9, 9, 3.5, 1.1);
+    }
+
+    public static void Comma(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Rect(6.5, 6, 2.5, 2.5);
+        pen.Line(8.5, 8, 6.0, 12, 1.4);
+    }
+
+    public static void IncreaseDecimal(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Circle(2.5, 10.5, 2, 1);
+        pen.Circle(5.5, 5.5, 5, 1.2);
+        pen.Bar(11.5, 8, 3.5, 1.3);
+        pen.Column(13.2, 6.2, 3.5, 1.3);
+    }
+
+    public static void DecreaseDecimal(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Circle(2.5, 10.5, 2, 1);
+        pen.Circle(5.5, 5.5, 5, 1.2);
+        pen.Bar(11.5, 8, 3.5, 1.3);
+    }
+
+    public static void CellNote(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Outline(2.5, 2.5, 11, 11, 1.2);
+        pen.Bar(5.0, 5.5, 6.0, 1.1);
+        pen.Bar(5.0, 8.0, 6.0, 1.1);
+        pen.Bar(5.0, 10.5, 4.0, 1.1);
+        pen.Triangle(10.5, 2.5, 13.5, 2.5, 13.5, 5.5);
+    }
+
+    public static void ConditionalFormatting(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Outline(2.5, 2.5, 11, 11, Stroke);
+        pen.Bar(2.5, 8.0, 11, 1.0);
+        pen.Column(8.0, 2.5, 11, 1.0);
+        pen.Rect(3.8, 3.8, 3.2, 3.2);
+        pen.Rect(9.0, 9.0, 3.2, 3.2);
+    }
+
+    public static void DataValidation(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Outline(2.5, 2.5, 11, 11, Stroke);
+        pen.Column(9.5, 2.5, 11, 1.0);
+        pen.Triangle(10.5, 7.0, 12.5, 7.0, 11.5, 9.5);
+        pen.Line(4.0, 7.5, 5.8, 10.0, 1.2);
+        pen.Line(5.8, 10.0, 8.5, 4.5, 1.2);
+    }
+
+    public static void Filter(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Bar(2.0, 3.0, 12.0, 1.4);
+        pen.Triangle(2.5, 3.5, 13.5, 3.5, 8.0, 9.5);
+        pen.Rect(7.0, 9.0, 2.0, 4.5);
+    }
+
+    public static void SortAscending(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Column(4.0, 3.0, 8.5, 1.4);
+        pen.Triangle(2.0, 10.0, 6.0, 10.0, 4.0, 13.5);
+        pen.Bar(8.0, 4.0, 3.0, 1.4);
+        pen.Bar(8.0, 8.0, 5.0, 1.4);
+        pen.Bar(8.0, 12.0, 7.0, 1.4);
+    }
+
+    public static void SortDescending(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Column(4.0, 3.0, 8.5, 1.4);
+        pen.Triangle(2.0, 10.0, 6.0, 10.0, 4.0, 13.5);
+        pen.Bar(8.0, 4.0, 7.0, 1.4);
+        pen.Bar(8.0, 8.0, 5.0, 1.4);
+        pen.Bar(8.0, 12.0, 3.0, 1.4);
+    }
+
+    public static void Split(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Outline(2.0, 2.0, 12.0, 12.0, 1.2);
+        pen.Bar(2.0, 7.5, 12.0, 1.6);
+        pen.Column(7.2, 2.0, 12.0, 1.6);
+    }
+
+    public static void NewWindow(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Outline(2.0, 2.0, 9.0, 9.0, 1.2);
+        pen.Bar(2.0, 4.0, 9.0, 1.0);
+        pen.Outline(5.0, 5.0, 9.0, 9.0, 1.2);
+        pen.Bar(5.0, 7.0, 9.0, 1.0);
+    }
+
+    public static void Link(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        // Top-right chain loop
+        pen.Line(8.5, 4.5, 11.5, 1.5, Stroke);
+        pen.Line(11.5, 1.5, 14.5, 4.5, Stroke);
+        pen.Line(14.5, 4.5, 11.5, 7.5, Stroke);
+        pen.Line(11.5, 7.5, 9.5, 5.5, Stroke);
+        // Bottom-left chain loop
+        pen.Line(7.5, 11.5, 4.5, 14.5, Stroke);
+        pen.Line(4.5, 14.5, 1.5, 11.5, Stroke);
+        pen.Line(1.5, 11.5, 4.5, 8.5, Stroke);
+        pen.Line(4.5, 8.5, 6.5, 10.5, Stroke);
+        // Center connection
+        pen.Line(5.5, 10.5, 10.5, 5.5, Stroke);
+    }
+
+    public static void Group(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        // Vertical bracket
+        pen.Column(2.0, 3.0, 10.0, 1.4);
+        pen.Bar(2.0, 3.0, 3.0, 1.4);
+        pen.Bar(2.0, 13.0, 3.0, 1.4);
+        // Horizontal content lines
+        pen.Bar(6.5, 4.5, 7.5, 1.3);
+        pen.Bar(6.5, 8.0, 7.5, 1.3);
+        pen.Bar(6.5, 11.5, 7.5, 1.3);
+    }
+
+    public static void Ungroup(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        // Arrow pointing left away from rows
+        pen.Triangle(1.5, 8.0, 4.5, 5.0, 4.5, 11.0);
+        pen.Bar(4.5, 8.0, 3.0, 1.4);
+        // Horizontal content lines
+        pen.Bar(8.5, 4.5, 5.5, 1.3);
+        pen.Bar(8.5, 8.0, 5.5, 1.3);
+        pen.Bar(8.5, 11.5, 5.5, 1.3);
+    }
+
+    public static void ShowDetail(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Outline(2.5, 2.5, 11.0, 11.0, 1.2);
+        pen.Bar(5.0, 8.0, 6.0, 1.4);
+        pen.Column(8.0, 5.0, 6.0, 1.4);
+    }
+
+    public static void HideDetail(BRenderList list, BRect box, BColor color)
+    {
+        var pen = new Pen(list, box, color);
+        pen.Outline(2.5, 2.5, 11.0, 11.0, 1.2);
+        pen.Bar(5.0, 8.0, 6.0, 1.4);
+    }
+
     public static void AppMark(BRenderList list, BRect box, BColor page, BColor tile, BColor ink)
     {
         var backdrop = new Pen(list, box, tile);

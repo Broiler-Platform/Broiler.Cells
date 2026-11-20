@@ -1,14 +1,33 @@
 using System.Globalization;
 using Broiler.Documents.Model;
+using Broiler.Graphics.Color;
 
 namespace Broiler.Cells.Core;
 
 public enum CellEntryMode { Auto, Text, Number, Boolean, Date, Error, Formula }
 
 /// <summary>Typed cell content, separate from its rendered display string.</summary>
-public sealed record CellContent(CellValue Value, string Input, string? Formula = null, string? NumberFormat = null, string? CachedText = null)
+public sealed record CellContent(
+    CellValue Value,
+    string Input,
+    string? Formula = null,
+    string? NumberFormat = null,
+    string? CachedText = null,
+    BColor Shading = default,
+    InlineStyle Font = default,
+    CellBorders Borders = default,
+    TextAlignment Alignment = TextAlignment.Left,
+    CellVerticalAlignment VerticalAlignment = CellVerticalAlignment.Center,
+    int ColumnSpan = 1,
+    int RowSpan = 1,
+    TableCellPadding? Padding = null,
+    bool WrapText = false,
+    CellNote? Note = null,
+    CellHyperlink? Hyperlink = null)
 {
     public string Display => Formula is not null ? CachedText ?? Input : CellNumberFormatter.Format(Value, NumberFormat, CultureInfo.InvariantCulture).Text;
+
+    public BColor? FormattedColor => (Formula is null || !Value.IsEmpty) ? CellNumberFormatter.Format(Value, NumberFormat, CultureInfo.InvariantCulture).Color : null;
 
     internal static CellContent Parse(string input, CellEntryMode mode, string? format)
     {

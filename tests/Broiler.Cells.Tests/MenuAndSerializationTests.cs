@@ -134,7 +134,7 @@ public sealed class MenuAndSerializationTests
 
         var menu = view.Menu;
         Assert.NotNull(menu);
-        Assert.Equal(2, menu.Items.Count);
+        Assert.Equal(8, menu.Items.Count);
 
         // File Menu
         UiMenuItem fileMenu = menu.Items[0];
@@ -143,7 +143,7 @@ public sealed class MenuAndSerializationTests
         Assert.Equal('F', fileMenu.AccessKey);
 
         var nonSeparatorFileItems = fileMenu.Children.Where(i => !i.IsSeparator).ToList();
-        Assert.Equal(6, nonSeparatorFileItems.Count);
+        Assert.Equal(8, nonSeparatorFileItems.Count);
 
         // New
         UiMenuItem newItem = nonSeparatorFileItems[0];
@@ -177,8 +177,23 @@ public sealed class MenuAndSerializationTests
         Assert.Equal('A', saveAsItem.AccessKey);
         Assert.Equal("Ctrl+Shift+S", saveAsItem.Accelerator);
 
+        // Export as PDF
+        UiMenuItem exportPdfItem = nonSeparatorFileItems[4];
+        Assert.Equal("file.export-pdf", exportPdfItem.Id);
+        Assert.Equal("Export as PDF (.pdf)", exportPdfItem.Text);
+        Assert.Equal("file.export-pdf", exportPdfItem.CommandName);
+        Assert.Equal('E', exportPdfItem.AccessKey);
+
+        // Print
+        UiMenuItem printItem = nonSeparatorFileItems[5];
+        Assert.Equal("file.print", printItem.Id);
+        Assert.Equal("Print...", printItem.Text);
+        Assert.Equal("file.print", printItem.CommandName);
+        Assert.Equal('P', printItem.AccessKey);
+        Assert.Equal("Ctrl+P", printItem.Accelerator);
+
         // Close
-        UiMenuItem closeItem = nonSeparatorFileItems[4];
+        UiMenuItem closeItem = nonSeparatorFileItems[6];
         Assert.Equal("file.close", closeItem.Id);
         Assert.Equal("Close", closeItem.Text);
         Assert.Equal("file.close", closeItem.CommandName);
@@ -186,15 +201,86 @@ public sealed class MenuAndSerializationTests
         Assert.Equal("Ctrl+W", closeItem.Accelerator);
 
         // Exit
-        UiMenuItem exitItem = nonSeparatorFileItems[5];
+        UiMenuItem exitItem = nonSeparatorFileItems[7];
         Assert.Equal("file.exit", exitItem.Id);
         Assert.Equal("Exit", exitItem.Text);
         Assert.Equal("file.exit", exitItem.CommandName);
         Assert.Equal('X', exitItem.AccessKey);
         Assert.Equal("Alt+F4", exitItem.Accelerator);
 
+        // Edit Menu
+        UiMenuItem editMenu = menu.Items[1];
+        Assert.Equal("menu.edit", editMenu.Id);
+        Assert.Equal("Edit", editMenu.Text);
+        Assert.Equal('E', editMenu.AccessKey);
+        var nonSeparatorEditItems = editMenu.Children.Where(i => !i.IsSeparator).ToList();
+        Assert.True(nonSeparatorEditItems.Count >= 8);
+        Assert.Equal("edit.cut", nonSeparatorEditItems[0].Id);
+        Assert.Equal("edit.copy", nonSeparatorEditItems[1].Id);
+        Assert.Equal("edit.paste", nonSeparatorEditItems[2].Id);
+        Assert.Equal("edit.clear", nonSeparatorEditItems[3].Id);
+        Assert.Equal("edit.find", nonSeparatorEditItems[4].Id);
+        Assert.Equal("edit.replace", nonSeparatorEditItems[5].Id);
+        Assert.Equal("edit.insert-note", nonSeparatorEditItems[6].Id);
+        Assert.Equal("edit.delete-note", nonSeparatorEditItems[7].Id);
+        Assert.Contains(nonSeparatorEditItems, i => i.Id == "edit.fill");
+        Assert.Contains(nonSeparatorEditItems, i => i.Id == "edit.remove-hyperlink");
+
+        // Insert Menu
+        UiMenuItem insertMenu = menu.Items[2];
+        Assert.Equal("menu.insert", insertMenu.Id);
+        Assert.Equal("Insert", insertMenu.Text);
+        Assert.Equal('I', insertMenu.AccessKey);
+        var nonSeparatorInsertItems = insertMenu.Children.Where(i => !i.IsSeparator).ToList();
+        Assert.Equal(2, nonSeparatorInsertItems.Count);
+        Assert.Equal("insert.hyperlink", nonSeparatorInsertItems[0].Id);
+        Assert.Equal("edit.insert-note", nonSeparatorInsertItems[1].CommandName);
+
+        // View Menu
+        UiMenuItem viewMenu = menu.Items[3];
+        Assert.Equal("menu.view", viewMenu.Id);
+        Assert.Equal("View", viewMenu.Text);
+        Assert.Equal('V', viewMenu.AccessKey);
+        var nonSeparatorViewItems = viewMenu.Children.Where(i => !i.IsSeparator).ToList();
+        Assert.Contains(nonSeparatorViewItems, i => i.CommandName == "view.toggle-gridlines");
+        Assert.Contains(nonSeparatorViewItems, i => i.CommandName == "view.freeze-panes");
+        Assert.Contains(nonSeparatorViewItems, i => i.CommandName == "view.unfreeze-panes");
+        Assert.Contains(nonSeparatorViewItems, i => i.CommandName == "view.split");
+        Assert.Contains(nonSeparatorViewItems, i => i.CommandName == "view.split-horizontal");
+        Assert.Contains(nonSeparatorViewItems, i => i.CommandName == "view.split-vertical");
+        Assert.Contains(nonSeparatorViewItems, i => i.CommandName == "view.split-remove");
+
+        // Format Menu
+        UiMenuItem formatMenu = menu.Items[4];
+        Assert.Equal("menu.format", formatMenu.Id);
+        Assert.Equal("Format", formatMenu.Text);
+        Assert.Equal('O', formatMenu.AccessKey);
+        var nonSeparatorFormatItems = formatMenu.Children.Where(i => !i.IsSeparator).ToList();
+        Assert.True(nonSeparatorFormatItems.Count >= 5);
+        Assert.Contains(nonSeparatorFormatItems, i => i.Id == "format.conditional");
+
+        // Data Menu
+        UiMenuItem dataMenu = menu.Items[5];
+        Assert.Equal("menu.data", dataMenu.Id);
+        Assert.Equal("Data", dataMenu.Text);
+        Assert.Equal('D', dataMenu.AccessKey);
+        var nonSeparatorDataItems = dataMenu.Children.Where(i => !i.IsSeparator).ToList();
+        Assert.True(nonSeparatorDataItems.Count >= 2);
+        Assert.Contains(nonSeparatorDataItems, i => i.CommandName == "data.sort-az");
+        Assert.Contains(nonSeparatorDataItems, i => i.CommandName == "data.filter");
+        Assert.Contains(nonSeparatorDataItems, i => i.CommandName == "data.validation");
+        Assert.Contains(nonSeparatorDataItems, i => i.CommandName == "data.validation.clear");
+
+        // Window Menu
+        UiMenuItem windowMenu = menu.Items[6];
+        Assert.Equal("menu.window", windowMenu.Id);
+        Assert.Equal("Window", windowMenu.Text);
+        Assert.Equal('W', windowMenu.AccessKey);
+        var nonSeparatorWindowItems = windowMenu.Children.Where(i => !i.IsSeparator).ToList();
+        Assert.Contains(nonSeparatorWindowItems, i => i.CommandName == "window.new-window");
+
         // Help Menu
-        UiMenuItem helpMenu = menu.Items[1];
+        UiMenuItem helpMenu = menu.Items[7];
         Assert.Equal("menu.help", helpMenu.Id);
         Assert.Equal("Help", helpMenu.Text);
         Assert.Equal('H', helpMenu.AccessKey);
@@ -324,6 +410,8 @@ public sealed class MenuAndSerializationTests
         Assert.True(view.CommandDispatcher.TryExecute("file.open"));
         Assert.True(view.CommandDispatcher.TryExecute("file.save"));
         Assert.True(view.CommandDispatcher.TryExecute("file.save-as"));
+        Assert.True(view.CommandDispatcher.TryExecute("file.export-pdf"));
+        Assert.True(view.CommandDispatcher.TryExecute("file.print"));
 
         Assert.True(view.CommandDispatcher.TryExecute("file.close"));
         Assert.Equal(10, view.CellControl.Sheet.RowCount);

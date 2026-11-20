@@ -74,7 +74,7 @@ public sealed class WorkbookSerializationTests
     public void OversizedWorkbookIsRefusedWithoutTruncation(string extension)
     {
         var workbook = new SpreadsheetWorkbook([new SpreadsheetWorksheet("TooWide", [new SpreadsheetRow(0,
-            [new SpreadsheetCell(new CellAddress(0, 100), CellValue.FromText("outside"))])])]);
+            [new SpreadsheetCell(new CellAddress(0, SheetModel.MaximumColumns), CellValue.FromText("outside"))])])]);
         using var stream = new MemoryStream();
         Codec(extension).Write(Dense(workbook).ToRichTextDocument(), stream);
         stream.Position = 0;
@@ -115,5 +115,62 @@ public sealed class WorkbookSerializationTests
             Assert.Equal("original", File.ReadAllText(path));
         }
         finally { File.Delete(path); }
+    }
+
+    [Theory]
+    [InlineData(".xlsx")]
+    [InlineData(".ods")]
+    public void CellStylingAndDimensionsSurviveEditing(string extension)
+    {
+        var font = new InlineStyle { Bold = true, Italic = true, FontSize = 14, Foreground = Broiler.Graphics.Color.BColor.Red };
+        var borders = new CellBorders(new TableBorder(Broiler.Graphics.Color.BColor.Green, 1.5, TableBorderStyle.Solid), default, default, default);
+        var shading = Broiler.Graphics.Color.BColor.Blue;
+        var original = new SpreadsheetWorkbook([
+            new SpreadsheetWorksheet("Styles", [
+                new SpreadsheetRow(0, [
+                    new SpreadsheetCell(new CellAddress(0, 0), CellValue.FromNumber(100), numberFormat: "#,##0.00", shading: shading)
+                    {
+                        Font = font,
+                        Borders = borders,
+                        Alignment = TextAlignment.Right,
+                        VerticalAlignment = CellVerticalAlignment.Bottom
+                    }
+                ], height: 35)
+            ], columnWidths: [120])
+        ]);
+
+        using var input = new MemoryStream();
+        Codec(extension).Write(original.ToRichTextDocument(), input);
+        input.Position = 0;
+
+        var sheet = SheetDocumentSerializer.Load(input, "styles" + extension);
+        Assert.Equal("100", sheet[0, 0]);
+
+        var loadedContent = sheet.GetContent(0, 0);
+        Assert.Equal(shading, loadedContent.Shading);
+        Assert.True(loadedContent.Font.Bold);
+        Assert.Equal(TextAlignment.Right, loadedContent.Alignment);
+
+        // Edit the value and resize dimensions
+        sheet[0, 0] = "200";
+        sheet.SetColumnWidth(0, 180);
+        sheet.SetRowHeight(0, 45);
+
+        using var output = new MemoryStream();
+        SheetDocumentSerializer.Save(sheet, output, "edited" + extension);
+        output.Position = 0;
+
+        var restored = Workbook(Codec(extension).Read(output));
+        var restoredCell = restored.Sheets[0][0, 0]!;
+        Assert.Equal(shading, restoredCell.Shading);
+        Assert.True(restoredCell.Font.Bold);
+        Assert.True(restoredCell.Font.Italic);
+        Assert.Equal(14, restoredCell.Font.FontSize);
+        Assert.Equal(Broiler.Graphics.Color.BColor.Red, restoredCell.Font.Foreground);
+        Assert.Equal(TextAlignment.Right, restoredCell.Alignment);
+        Assert.Equal(CellVerticalAlignment.Bottom, restoredCell.VerticalAlignment);
+        Assert.Equal(1.5, restoredCell.Borders.Left.Width);
+        Assert.Equal(45, restored.Sheets[0].Rows[0].Height);
+        Assert.Equal(180, restored.Sheets[0].ColumnWidths[0]);
     }
 }

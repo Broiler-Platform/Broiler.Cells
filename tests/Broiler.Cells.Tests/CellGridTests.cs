@@ -417,6 +417,112 @@ public sealed class CellGridTests
         Assert.False(nodes[3].State.HasFlag(UiSemanticState.ReadOnly));
     }
 
+    [Fact]
+    public void CellShadingAndBordersAreRendered()
+    {
+        var sheet = new SheetModel(2, 2);
+        sheet.SetInput(0, 0, "Styled");
+        var shadingColor = BColor.FromArgb(255, 200, 220, 250);
+        var borderColor = BColor.FromArgb(255, 255, 0, 0);
+        sheet.SetCellShading(0, 0, shadingColor);
+        sheet.SetCellBorders(0, 0, new Broiler.Documents.Model.CellBorders(
+            Broiler.Documents.Model.TableBorder.Solid(borderColor),
+            Broiler.Documents.Model.TableBorder.None,
+            Broiler.Documents.Model.TableBorder.None,
+            Broiler.Documents.Model.TableBorder.None));
+
+        using var fixture = new Fixture(sheet);
+        BRenderList frame = fixture.Session.RenderFrame();
+
+        var fills = frame.Commands.OfType<BRenderCommand.FillRect>().ToArray();
+        Assert.Contains(fills, f => f.Color == shadingColor);
+        Assert.Contains(fills, f => f.Color == borderColor);
+    }
+
+    [Fact]
+    public void CellCustomFontAndColorsAreRendered()
+    {
+        var sheet = new SheetModel(2, 2);
+        sheet.SetInput(0, 0, "CustomFont");
+        var fg = BColor.FromArgb(255, 0, 128, 0);
+        sheet.SetCellFont(0, 0, new Broiler.Documents.Model.InlineStyle
+        {
+            Bold = true,
+            Italic = true,
+            Foreground = fg,
+            FontSize = 18,
+        });
+
+        using var fixture = new Fixture(sheet);
+        BRenderList frame = fixture.Session.RenderFrame();
+
+        var text = Assert.Single(frame.Commands.OfType<BRenderCommand.DrawText>());
+        Assert.Equal("CustomFont", text.Text.Text);
+        Assert.Equal(fg, text.Text.Color);
+        Assert.Equal(Broiler.Graphics.Text.BFontWeight.Bold, text.Text.Font.Weight);
+        Assert.Equal(Broiler.Graphics.Text.BFontSlant.Italic, text.Text.Font.Slant);
+        Assert.Equal(18, text.Text.Font.Size);
+    }
+
+    [Fact]
+    public void CellAlignmentAdjustsTextCoordinates()
+    {
+        var sheet = new SheetModel(3, 1);
+        sheet.SetInput(0, 0, "Left");
+        sheet.SetCellAlignment(0, 0, Broiler.Documents.Model.TextAlignment.Left);
+
+        sheet.SetInput(1, 0, "Center");
+        sheet.SetCellAlignment(1, 0, Broiler.Documents.Model.TextAlignment.Center);
+
+        sheet.SetInput(2, 0, "Right");
+        sheet.SetCellAlignment(2, 0, Broiler.Documents.Model.TextAlignment.Right);
+
+        using var fixture = new Fixture(sheet);
+        BRenderList frame = fixture.Session.RenderFrame();
+
+        var draws = frame.Commands.OfType<BRenderCommand.DrawText>().ToArray();
+        Assert.Equal(3, draws.Length);
+
+        double leftX = draws[0].Origin.X;
+        double centerX = draws[1].Origin.X;
+        double rightX = draws[2].Origin.X;
+
+        Assert.True(leftX < centerX, $"Expected leftX ({leftX}) < centerX ({centerX})");
+        Assert.True(centerX < rightX, $"Expected centerX ({centerX}) < rightX ({rightX})");
+    }
+
+    [Fact]
+    public void CellVerticalAlignmentAdjustsTextCoordinates()
+    {
+        var sheet = new SheetModel(3, 1);
+        sheet.SetRowHeight(0, 80);
+        sheet.SetRowHeight(1, 80);
+        sheet.SetRowHeight(2, 80);
+
+        sheet.SetInput(0, 0, "Top");
+        sheet.SetCellVerticalAlignment(0, 0, Broiler.Documents.Model.CellVerticalAlignment.Top);
+
+        sheet.SetInput(1, 0, "Center");
+        sheet.SetCellVerticalAlignment(1, 0, Broiler.Documents.Model.CellVerticalAlignment.Center);
+
+        sheet.SetInput(2, 0, "Bottom");
+        sheet.SetCellVerticalAlignment(2, 0, Broiler.Documents.Model.CellVerticalAlignment.Bottom);
+
+        using var fixture = new Fixture(sheet);
+        BRenderList frame = fixture.Session.RenderFrame();
+
+        var draws = frame.Commands.OfType<BRenderCommand.DrawText>().ToArray();
+        Assert.Equal(3, draws.Length);
+
+        // Check relative offset within each cell's row
+        double topRelativeY = draws[0].Origin.Y - fixture.Grid.GetRowOffset(0);
+        double centerRelativeY = draws[1].Origin.Y - fixture.Grid.GetRowOffset(1);
+        double bottomRelativeY = draws[2].Origin.Y - fixture.Grid.GetRowOffset(2);
+
+        Assert.True(topRelativeY < centerRelativeY, $"Expected top ({topRelativeY}) < center ({centerRelativeY})");
+        Assert.True(centerRelativeY < bottomRelativeY, $"Expected center ({centerRelativeY}) < bottom ({bottomRelativeY})");
+    }
+
     private sealed class Fixture : IDisposable
     {
         public Fixture(SheetModel sheet, double width = 1000, double height = 400, bool isEditingEnabled = true)
