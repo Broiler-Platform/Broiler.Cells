@@ -1411,7 +1411,10 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
             list.FillRect(cell, _theme.Surface);
 
         if (IsCellSelected(row, column))
-            list.FillRect(cell, _theme.AccentSoft);
+        {
+            var accent = _theme.AccentSoft;
+            list.FillRect(cell, effectiveShading.A > 0 ? new BColor(accent.R, accent.G, accent.B, 72) : accent);
+        }
 
         var borders = condStyle?.Borders ?? content.Borders;
         if (borders.Top.IsVisible)
@@ -1478,9 +1481,10 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         }
 
         var font = ResolveFont(effectiveFont);
-        var textColor = IsCellSelected(row, column)
-            ? _theme.SelectionText
-            : ((condStyle?.Foreground is { } cfg && cfg.A > 0) ? cfg : (content.FormattedColor ?? (!effectiveFont.Foreground.IsEmpty && effectiveFont.Foreground.A > 0 ? effectiveFont.Foreground : _theme.Text)));
+        var defaultTextColor = IsCellSelected(row, column) && effectiveShading.A == 0 ? _theme.SelectionText : _theme.Text;
+        var textColor = condStyle?.Foreground is { A: > 0 } customForeground
+            ? customForeground
+            : content.FormattedColor ?? (effectiveFont.Foreground.A > 0 ? effectiveFont.Foreground : defaultTextColor);
 
         RenderCellText(list, cell, text, content, effectiveFont, font, textColor);
     }

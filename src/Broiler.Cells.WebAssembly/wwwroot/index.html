@@ -75,7 +75,7 @@
 </form></dialog>
 <dialog id="cells-export" aria-labelledby="cells-export-title"><form method="dialog">
     <h2 id="cells-export-title">Export spreadsheet</h2><label for="cells-filename">Filename</label><input id="cells-filename" required maxlength="180" value="Spreadsheet.csv">
-    <p>Choose a .csv, .xlsx or .ods filename. Workbook import/export supports a basic subset; originals should be kept as backups. CSV preserves string values, including formula-like text. Other spreadsheet programs may interpret that text as formulas.</p>
+    <p>Choose .xlsx or .ods to retain text colors, fills and solid borders. CSV exports cell text and omits formatting. Other spreadsheet programs may interpret formula-like CSV text as formulas.</p>
     <button value="export">Export</button><button value="cancel" formnovalidate>Cancel</button>
 </form></dialog>
 

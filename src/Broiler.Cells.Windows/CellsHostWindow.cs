@@ -35,9 +35,10 @@ namespace Broiler.Cells.Windows;
 /// </remarks>
 [SupportedOSPlatform("windows7.0")]
 internal sealed class CellsHostWindow : Direct2DWindow, IUiHostWindow, IUiWindowChromeHost,
-    IUiClipboardHost, IUiTextInputHost, IUiImageHost
+    IUiWindowHost, IUiClipboardHost, IUiTextInputHost, IUiImageHost
 {
     private readonly CellsUiHost _host;
+    private readonly Func<BWindow, UiHostWindowRequest, IUiHostWindow> _createDialogWindow;
     private UiSession? _session;
 
 #pragma warning disable CS0618
@@ -47,6 +48,7 @@ internal sealed class CellsHostWindow : Direct2DWindow, IUiHostWindow, IUiWindow
     public CellsHostWindow(
         UiHostWindowRequest request,
         BWindow? owner,
+        Func<BWindow, UiHostWindowRequest, IUiHostWindow> createDialogWindow,
         Func<string?>? getClipboardText,
         Action<string>? setClipboardText)
         : base(new BWindowOptions
@@ -69,6 +71,7 @@ internal sealed class CellsHostWindow : Direct2DWindow, IUiHostWindow, IUiWindow
             Owner = request.IsModal ? owner : null,
         })
     {
+        _createDialogWindow = createDialogWindow;
         _host = new CellsUiHost(
             () => ClientSize,
             () => DpiScale,
@@ -91,6 +94,9 @@ internal sealed class CellsHostWindow : Direct2DWindow, IUiHostWindow, IUiWindow
     void IUiHost.Invalidate(UiInvalidation invalidation) => _host.Invalidate(invalidation);
 
     void IUiHost.Present(BRenderList renderList) => _host.Present(renderList);
+
+    IUiHostWindow IUiWindowHost.CreateHostWindow(UiHostWindowRequest request) =>
+        _createDialogWindow(this, request);
 
     // IUiHostWindow. SetTitle and CloseRequested come from BWindow, which already reports a
     // secondary window's WM_CLOSE as a request instead of destroying the window itself.

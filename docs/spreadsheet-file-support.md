@@ -23,9 +23,9 @@ compatibility. Keep original workbooks as backups.
   drag reordering are not implemented.
 - Unchanged cells retain their typed value, cached display text, formula, number
   format, shading and spans to the extent the Documents reader/writer supports them.
-  Supported row heights and column widths are retained in the saved workbook; the
-  Cells grid does not render dimensions/styles. Typed editing and number-format controls
-  are available; see the completed P1 section below.
+  The Cells grid displays supported row heights, column widths and cell styles.
+  Typed editing and number-format controls are available; see the completed P1
+  section below.
 - Empty rows and columns preserve cell coordinates. Explicit blank cells work around
   the ODS writer's current positional treatment of sparse cell sequences.
 - Each worksheet must fit within 100 rows and 100 columns. A larger worksheet,
@@ -112,10 +112,57 @@ the entry before switching sheets/exporting.
 | P1 | Workbook-aware browser recovery | Versioned typed workbook snapshots with tests for formulas, additional sheets and restore compatibility. |
 | P1 | Import/export diagnostics UI | Review all diagnostics in a dialog, report write warnings, and make feature-loss decisions before export. |
 | P1 follow-up | Workbook formulas | Add cross-sheet references, rename/removal semantics and broader spreadsheet conformance. |
-| P2 | Grid formatting and merges | Render/edit supported styles, shading, spans, dimensions, alignments and formats; define covered-cell editing behavior. |
+| Implemented | Cell appearance | Configurable text color, fill and solid borders. XLSX and ODS round trips are covered by automated tests. See [implementation plan](#cell-appearance-implementation-plan). |
 | P2 | Larger/sparse sheets | Replace the dense 100×100 model and bound resource use while retaining worksheet positions. |
 | P2 | Fidelity extensions | Expand Documents support or preserve unsupported package parts where safe; add Excel/LibreOffice interoperability fixtures. |
 | P2 | Rich spreadsheet operations | Selections, range clipboard, structural row/column editing, undo/redo, named ranges, filtering and sorting. |
+
+## Cell appearance implementation plan
+
+Open **Format → Cell Appearance** or **Appearance** in the toolbar. Choose text
+color, fill or a border preset to open the shared color chooser, then confirm
+the color to apply it. The reset buttons restore automatic text color, no fill
+or no borders.
+
+**Implemented scope.** Apply text color, fill and borders to the current selection,
+including empty cells. Offer automatic text color, no fill, and no borders.
+Start with outer, inner and all-border presets for rectangular ranges and a
+solid line with selectable color. Keep the existing bold, italic, underline,
+alignment, wrap and number-format actions available alongside the new controls.
+Additional border patterns and font family or size controls can follow.
+
+1. **Model and commands.** Reuse `CellContent.Font.Foreground`, `Shading`,
+   `Borders` and the corresponding `SheetModel` setters. Give each command an
+   explicit reset and update only the targeted properties. Preserve values,
+   formulas, number formats and unrelated styles. Define shared-edge ownership
+   so applying or clearing borders produces consistent results across adjacent
+   cells. Treat a merged range as one visual cell and operate on its perimeter.
+2. **Controls and rendering.** Extend the shared `CellsView` format commands and
+   toolbar with color controls and border presets. Reuse the selection iterator,
+   apply presets per selected rectangle and leave gaps between disjoint
+   selections untouched. Show mixed styles in the controls. Route the same
+   commands from the browser menu where applicable. Reuse `CellGrid` rendering
+   and preserve conditional-format precedence, number-format colors, the theme
+   defaults and selection visibility.
+3. **Persistence.** Audit the XLSX and ODS adapters in Broiler.Documents for
+   text color, fill and per-edge border support in both directions. Preserve
+   style-only empty cells. In `SheetDocumentSerializer`, distinguish explicit
+   resets from unchanged imported styles: the current default-value fallbacks
+   can restore old fill or borders on export. Extend codec mappings where needed
+   and report styles the chosen output format cannot retain. CSV continues to
+   export cell text. Include styles in the separately planned workbook-aware
+   browser recovery.
+4. **Verification.** Cover single-cell, rectangular and disjoint selections,
+   formatted empty cells, merged ranges, shared edges and explicit resets.
+   Verify that formatting preserves values and formulas, and that edits preserve
+   styles. Test import, save and reopen in XLSX and ODS, including removal of
+   imported styles. Verify command routing and inspect the formatting in Windows
+   and WebAssembly with scrolling, selection and conditional formatting active.
+
+The XLSX and ODS codecs preserve these styles, including formatted empty cells.
+CSV and TSV exports indicate that formatting is omitted. The browser's current
+recovery still stores the visible worksheet as text; retaining workbook styles is
+part of the separate workbook-aware recovery milestone.
 
 ## Validation
 

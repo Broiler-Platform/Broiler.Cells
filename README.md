@@ -15,9 +15,11 @@ by `Broiler.Documents.Csv`. The model, serialization, and cell control are separ
 | 3 | Row and column labels; addresses such as A1 and B2 | 100 rows × 100 columns (10,000 cells) | Implemented; checks pass ([details](docs/version-3.md)) |
 | Enhancement | Menu bar (File, Help) & CSV serialization | 100 rows × 100 columns (10,000 cells) | Implemented; checks pass |
 
-The roadmap ends at Version 3. Each version builds on the previous one.
+The original scaffold roadmap ends at Version 3. Later plans cover spreadsheet
+features such as cell appearance.
 
 - [Roadmap and acceptance criteria](docs/roadmap.md)
+- [Cell appearance implementation plan](docs/spreadsheet-file-support.md#cell-appearance-implementation-plan)
 - [Browser edition: file flows, safety, limits and verification](docs/browser-cells.md)
 - [Application design and reusable cell control](docs/design.md)
 - [Version 1 structure and verification](docs/version-1.md)

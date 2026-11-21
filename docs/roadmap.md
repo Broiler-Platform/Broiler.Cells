@@ -96,5 +96,7 @@ an active-cell address. It does not mean comments or notes attached to cells.
 - [x] Header space does not count toward the 100 × 100 data-cell limit.
 - [x] Hiding headers for an embedded table preserves its values and editing behavior.
 
-Implementation stops when Version 3 meets these criteria. No further versions are
-planned here. See the [design](design.md) for the visual direction and control boundary.
+Version 3 closes the original scaffold roadmap. The
+[cell appearance plan](spreadsheet-file-support.md#cell-appearance-implementation-plan)
+covers subsequent formatting work. See the [design](design.md) for the visual
+direction and control boundary.

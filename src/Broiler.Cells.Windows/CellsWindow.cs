@@ -139,9 +139,11 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiI
     void IUiHost.Invalidate(UiInvalidation invalidation) => Invalidate();
     void IUiHost.Present(BRenderList renderList) { } // The native window presents BuildRenderList's result.
 
-    public IUiHostWindow CreateHostWindow(UiHostWindowRequest request)
+    public IUiHostWindow CreateHostWindow(UiHostWindowRequest request) => CreateDialogWindow(this, request);
+
+    private IUiHostWindow CreateDialogWindow(BWindow owner, UiHostWindowRequest request)
     {
-        var window = new CellsHostWindow(ToScreenPlacement(request), this,
+        var window = new CellsHostWindow(ToScreenPlacement(owner, request), owner, CreateDialogWindow,
             () => _clipboard is not null && _clipboard.TryGetText(out string text) ? text : null,
             text => _clipboard?.SetText(text));
         _dialogWindows.Add(window);
@@ -150,14 +152,14 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiI
         return window;
     }
 
-    private UiHostWindowRequest ToScreenPlacement(UiHostWindowRequest request)
+    private static UiHostWindowRequest ToScreenPlacement(BWindow owner, UiHostWindowRequest request)
     {
-        if (request.Placement.IsEmpty || NativeHandle == 0)
+        if (request.Placement.IsEmpty || owner.NativeHandle == 0)
             return request;
         var origin = default(NativePoint);
-        if (!ClientToScreen(NativeHandle, ref origin))
+        if (!ClientToScreen(owner.NativeHandle, ref origin))
             return request;
-        double scale = DpiScale > 0 ? DpiScale : 1;
+        double scale = owner.DpiScale > 0 ? owner.DpiScale : 1;
         var placement = request.Placement;
         return request with
         {
@@ -323,7 +325,7 @@ internal sealed class CellsWindow : Direct2DWindow, IUiHost, IUiCursorHost, IUiI
     {
         if (disposing)
         {
-            foreach (var window in _dialogWindows.ToArray())
+            foreach (var window in Enumerable.Reverse(_dialogWindows.ToArray()))
                 window.Dispose();
             _dialogWindows.Clear();
             _automation?.Dispose();

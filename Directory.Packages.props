@@ -38,7 +38,8 @@
     <PackageVersion Include="Broiler.UI.Tooltip.Standard" Version="0.1.0-preview.35" />
     <PackageVersion Include="Broiler.UI.FileDialog.Standard" Version="0.1.0-preview.35" />
     <PackageVersion Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.35" />
-    <PackageVersion Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.ColorDialog.Standard" Version="0.1.0-preview.35" />
+    <PackageVersion Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.35" />
     <PackageVersion Include="Broiler.UI.Button.Standard" Version="0.1.0-preview.35" />
     <PackageVersion Include="Broiler.UI.Window.Standard" Version="0.1.0-preview.35" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />

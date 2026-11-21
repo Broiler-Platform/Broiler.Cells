@@ -151,6 +151,7 @@ public class CellsView : UiElement
         _dispatcher.Add(new StandardCommand("format.align-right", () => SetSelectedAlignment(Broiler.Documents.Model.TextAlignment.Right)));
         _dispatcher.Add(new StandardCommand("format.fill", () => ToggleSelectedFill(BColor.FromArgb(255, 255, 255, 153))));
         _dispatcher.Add(new StandardCommand("format.merge", ToggleMergeSelected));
+        _dispatcher.Add(new StandardCommand("format.appearance", OpenCellAppearance));
         _dispatcher.Add(new StandardCommand("format.wrap-text", ToggleWrapTextSelected));
         _dispatcher.Add(new StandardCommand("view.toggle-gridlines", ToggleGridlines));
         _dispatcher.Add(new StandardCommand("view.freeze-panes", ToggleFreezePanes));
@@ -663,6 +664,7 @@ public class CellsView : UiElement
         formatMenu.Children.Add(new UiMenuItem("format.bold", "Bold") { AccessKey = 'B', Accelerator = "Ctrl+B", CommandName = "format.bold" });
         formatMenu.Children.Add(new UiMenuItem("format.italic", "Italic") { AccessKey = 'I', Accelerator = "Ctrl+I", CommandName = "format.italic" });
         formatMenu.Children.Add(new UiMenuItem("format.underline", "Underline") { AccessKey = 'U', Accelerator = "Ctrl+U", CommandName = "format.underline" });
+        formatMenu.Children.Add(new UiMenuItem("format.appearance", "Cell Appearance...") { CommandName = "format.appearance" });
         formatMenu.Children.Add(new UiMenuItem("format.sep1", "") { IsSeparator = true });
         formatMenu.Children.Add(new UiMenuItem("format.merge", "Merge & Center") { AccessKey = 'M', CommandName = "format.merge" });
         formatMenu.Children.Add(new UiMenuItem("format.wrap-text", "Wrap Text") { AccessKey = 'W', CommandName = "format.wrap-text" });
@@ -790,6 +792,7 @@ public class CellsView : UiElement
         StandardButton alignLeftButton = CreateButton("Left", "Align Left", () => SetSelectedAlignment(Broiler.Documents.Model.TextAlignment.Left), CellsIcons.AlignLeft);
         StandardButton alignCenterButton = CreateButton("Center", "Align Center", () => SetSelectedAlignment(Broiler.Documents.Model.TextAlignment.Center), CellsIcons.AlignCenter);
         StandardButton alignRightButton = CreateButton("Right", "Align Right", () => SetSelectedAlignment(Broiler.Documents.Model.TextAlignment.Right), CellsIcons.AlignRight);
+        StandardButton appearanceButton = CreateButton("Appearance", "Cell text color, fill and borders", OpenCellAppearance, CellsIcons.FillColor);
         StandardButton fillButton = CreateButton("Fill", "Fill yellow background", () => ToggleSelectedFill(BColor.FromArgb(255, 255, 255, 153)), CellsIcons.FillColor);
         StandardButton mergeButton = CreateButton("Merge", "Merge & Center (Ctrl+M)", ToggleMergeSelected, CellsIcons.MergeCells);
         StandardButton wrapButton = CreateButton("Wrap", "Toggle text wrap on selected cells", ToggleWrapTextSelected, CellsIcons.AlignLeft);
@@ -832,6 +835,7 @@ public class CellsView : UiElement
         toolbar.AddChild(boldButton);
         toolbar.AddChild(italicButton);
         toolbar.AddChild(underlineButton);
+        toolbar.AddChild(appearanceButton);
         if (!_compactMode)
         {
             toolbar.AddChild(alignLeftButton);
@@ -981,7 +985,13 @@ public class CellsView : UiElement
         CommitWorksheetEdit();
         SheetDocumentSerializer.Save(_cellControl.Sheet, path);
         _currentFilePath = path;
-        _status.Text = $"Saved: {Path.GetFileName(path)}" + (SheetDocumentSerializer.IsWorkbook(path) ? " (basic workbook; basic formula support)" : string.Empty);
+        var formatNote = Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".csv" or ".tsv" => " (cell text only; formatting omitted)",
+            ".xlsx" or ".ods" => " (basic workbook; basic formula support)",
+            _ => string.Empty
+        };
+        _status.Text = $"Saved: {Path.GetFileName(path)}{formatNote}";
         TitleChanged?.Invoke(this, $"Broiler Cells - {Path.GetFileName(path)}");
         Invalidate(UiInvalidationKind.Render);
     }
@@ -1383,6 +1393,75 @@ public class CellsView : UiElement
         }
 
         _cellControl.InvalidateRender();
+    }
+
+    private void OpenCellAppearance()
+    {
+        if (OwnerWindow is not { IsClosed: false, IsDisposed: false } owner)
+            return;
+
+        CommitWorksheetEdit();
+        var sheet = _cellControl.Sheet;
+        var selection = new HashSet<CellPosition>();
+        ForEachSelectedCell((row, column) =>
+        {
+            if (sheet.TryGetMerge(row, column, out int rootRow, out int rootColumn, out int columns, out int rows))
+            {
+                for (int r = rootRow; r < rootRow + rows; r++)
+                    for (int c = rootColumn; c < rootColumn + columns; c++)
+                        selection.Add(new CellPosition(r, c));
+            }
+            else
+                selection.Add(new CellPosition(row, column));
+        });
+        if (selection.Count == 0)
+            return;
+
+        var anchors = selection.Where(cell => !sheet.IsCoveredCell(cell.Row, cell.Column)).ToArray();
+        var styles = anchors.Select(cell => sheet.GetContent(cell.Row, cell.Column))
+            .Select(content => (content.Font.Foreground, content.Shading, content.Borders)).Distinct().Take(2).Count();
+        CellAppearanceDialog.Show(owner, ViewportProvider?.Invoke() ?? owner.Bounds.Size,
+            styles > 1 ? "Selection contains mixed formats." : $"Selected cells: {anchors.Length}", InitialColor, Apply);
+
+        BColor InitialColor(string action)
+        {
+            var colors = anchors.Select(cell => sheet.GetContent(cell.Row, cell.Column)).Select(content => action switch
+            {
+                "text" => content.Font.Foreground,
+                "fill" => content.Shading,
+                _ => content.Borders.Top.Color
+            }).Distinct().Take(2).ToArray();
+            return colors.Length == 1 ? colors[0] : default;
+        }
+
+        void Apply(string action, BColor color)
+        {
+            if (ReferenceEquals(sheet, _cellControl.Sheet))
+            {
+                if (action is "text" or "fill")
+                {
+                    foreach (var cell in anchors)
+                    {
+                        if (action == "text")
+                            sheet.SetCellFont(cell.Row, cell.Column, sheet.GetContent(cell.Row, cell.Column).Font with { Foreground = color });
+                        else
+                            sheet.SetCellShading(cell.Row, cell.Column, color);
+                    }
+                }
+                else
+                {
+                    var preset = action switch
+                    {
+                        "outer" => CellBorderPreset.Outer,
+                        "inner" => CellBorderPreset.Inner,
+                        "all" => CellBorderPreset.All,
+                        _ => CellBorderPreset.None
+                    };
+                    CellAppearance.ApplyBorders(sheet, selection, preset, color);
+                }
+                _cellControl.InvalidateRender();
+            }
+        }
     }
 
     public void ToggleBoldSelected()

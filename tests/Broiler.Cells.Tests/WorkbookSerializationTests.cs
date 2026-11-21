@@ -4,12 +4,53 @@ using Broiler.Documents.Model;
 using Broiler.Documents.Model.Spreadsheets;
 using Broiler.Documents.Ods;
 using Broiler.Documents.Xlsx;
+using Broiler.Graphics.Color;
 using Xunit;
 
 namespace Broiler.Cells.Tests;
 
 public sealed class WorkbookSerializationTests
 {
+    [Theory]
+    [InlineData(".xlsx")]
+    [InlineData(".ods")]
+    public void AppearanceOnEmptyCellSurvivesSaveAndReset(string extension)
+    {
+        var sheet = new SheetModel(2, 2);
+        var color = new BColor(23, 89, 145);
+        sheet.SetCellShading(1, 1, color);
+        sheet.SetCellFont(1, 1, new InlineStyle { Foreground = color });
+        sheet.SetCellBorders(1, 1, CellBorders.All(new TableBorder(color, 1)));
+
+        SheetModel RoundTrip(SheetModel input)
+        {
+            using var bytes = new MemoryStream();
+            SheetDocumentSerializer.Save(input, bytes, "appearance" + extension);
+            bytes.Position = 0;
+            return SheetDocumentSerializer.Load(bytes, "appearance" + extension);
+        }
+
+        var restored = RoundTrip(sheet);
+        var content = restored.GetContent(1, 1);
+        Assert.Equal(color, content.Shading);
+        Assert.Equal(color, content.Font.Foreground);
+        Assert.Equal(color, content.Borders.Top.Color);
+        Assert.True(content.Value.IsEmpty);
+
+        restored.SetCellShading(1, 1, default);
+        restored.SetCellFont(1, 1, content.Font with { Foreground = default });
+        restored.SetCellBorders(1, 1, default);
+        restored[1, 1] = "Keep the reset cell in the file";
+        var exported = SheetDocumentSerializer.ToSpreadsheetWorkbook(restored).Sheets[0][1, 1]!;
+        Assert.Equal(0, exported.Shading.A);
+        Assert.Equal(0, exported.Font.Foreground.A);
+        Assert.False(exported.Borders.IsVisible);
+        var reset = RoundTrip(restored).GetContent(1, 1);
+        Assert.Equal(0, reset.Shading.A);
+        Assert.False(reset.Borders.IsVisible);
+        Assert.NotEqual(color, reset.Font.Foreground);
+    }
+
     private static DocumentCodec Codec(string extension) => extension == ".xlsx" ? new XlsxDocumentCodec() : new OdsDocumentCodec();
     private static SpreadsheetWorkbook Workbook(DocumentReadResult result) => result is XlsxReadResult x ? x.Workbook : ((OdsReadResult)result).Workbook;
 

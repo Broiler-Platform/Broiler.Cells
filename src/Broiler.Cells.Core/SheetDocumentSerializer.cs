@@ -222,10 +222,10 @@ public static class SheetDocumentSerializer
                             numberFormat: content.NumberFormat, cachedText: content.Value.IsEmpty && content.Formula is not null ? string.Empty : text,
                             columnSpan: colSpan,
                             rowSpan: rowSpan,
-                            shading: content.Shading.A > 0 ? content.Shading : (old?.Shading ?? default))
+                            shading: content.Shading)
                         {
-                            Font = content.Font != default ? content.Font : (old?.Font ?? InlineStyle.Default),
-                            Borders = content.Borders != default ? content.Borders : (old?.Borders ?? default),
+                            Font = content.Font,
+                            Borders = content.Borders,
                             Alignment = content.Alignment != default ? content.Alignment : (old?.Alignment ?? default),
                             VerticalAlignment = content.VerticalAlignment != default ? content.VerticalAlignment : (old?.VerticalAlignment ?? CellVerticalAlignment.Top),
                             WrapText = content.WrapText || (old?.WrapText ?? false),
@@ -246,10 +246,10 @@ public static class SheetDocumentSerializer
                             cachedText: text,
                             columnSpan: colSpan,
                             rowSpan: rowSpan,
-                            shading: content.Shading.A > 0 ? content.Shading : (old?.Shading ?? default))
+                            shading: content.Shading)
                         {
-                            Font = content.Font != default ? content.Font : (old?.Font ?? InlineStyle.Default),
-                            Borders = content.Borders != default ? content.Borders : (old?.Borders ?? default),
+                            Font = content.Font,
+                            Borders = content.Borders,
                             Alignment = content.Alignment != default ? content.Alignment : (old?.Alignment ?? default),
                             VerticalAlignment = content.VerticalAlignment != default ? content.VerticalAlignment : (old?.VerticalAlignment ?? CellVerticalAlignment.Top),
                             WrapText = content.WrapText || (old?.WrapText ?? false),
