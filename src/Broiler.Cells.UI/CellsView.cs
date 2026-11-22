@@ -1434,7 +1434,7 @@ public class CellsView : UiElement
             return colors.Length == 1 ? colors[0] : default;
         }
 
-        void Apply(string action, BColor color)
+        void Apply(string action, BColor color, double width, TableBorderStyle style)
         {
             if (ReferenceEquals(sheet, _cellControl.Sheet))
             {
@@ -1457,7 +1457,7 @@ public class CellsView : UiElement
                         "all" => CellBorderPreset.All,
                         _ => CellBorderPreset.None
                     };
-                    CellAppearance.ApplyBorders(sheet, selection, preset, color);
+                    CellAppearance.ApplyBorders(sheet, selection, preset, color, width, style);
                 }
                 _cellControl.InvalidateRender();
             }

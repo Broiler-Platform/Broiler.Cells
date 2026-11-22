@@ -14,9 +14,9 @@ public enum CellBorderPreset
 public static class CellAppearance
 {
     public static void ApplyBorders(SheetModel sheet, IReadOnlySet<CellPosition> selection,
-        CellBorderPreset preset, BColor color)
+        CellBorderPreset preset, BColor color, double width = 1, TableBorderStyle style = TableBorderStyle.Solid)
     {
-        var border = new TableBorder(color, 1);
+        var border = new TableBorder(color, width, style);
         foreach (var cell in selection)
         {
             if (sheet.IsCoveredCell(cell.Row, cell.Column))

@@ -1417,25 +1417,33 @@ public sealed class CellGrid : UiElement, IStandardThemedControl
         }
 
         var borders = condStyle?.Borders ?? content.Borders;
-        if (borders.Top.IsVisible)
+        DrawBorder(borders.Top, horizontal: true, trailing: false);
+        DrawBorder(borders.Bottom, horizontal: true, trailing: true);
+        DrawBorder(borders.Left, horizontal: false, trailing: false);
+        DrawBorder(borders.Right, horizontal: false, trailing: true);
+
+        void DrawBorder(TableBorder border, bool horizontal, bool trailing)
         {
-            double w = Math.Max(1, Math.Round(borders.Top.Width));
-            list.FillRect(new BRect(cell.X, cell.Y, cell.Width, w), borders.Top.Color);
-        }
-        if (borders.Bottom.IsVisible)
-        {
-            double w = Math.Max(1, Math.Round(borders.Bottom.Width));
-            list.FillRect(new BRect(cell.X, cell.Bottom - w, cell.Width, w), borders.Bottom.Color);
-        }
-        if (borders.Left.IsVisible)
-        {
-            double w = Math.Max(1, Math.Round(borders.Left.Width));
-            list.FillRect(new BRect(cell.X, cell.Y, w, cell.Height), borders.Left.Color);
-        }
-        if (borders.Right.IsVisible)
-        {
-            double w = Math.Max(1, Math.Round(borders.Right.Width));
-            list.FillRect(new BRect(cell.Right - w, cell.Y, w, cell.Height), borders.Right.Color);
+            if (!border.IsVisible)
+                return;
+
+            double thickness = Math.Min(Math.Max(1, border.Width), horizontal ? cell.Height : cell.Width);
+            double length = horizontal ? cell.Width : cell.Height;
+            double x = !horizontal && trailing ? cell.Right - thickness : cell.X;
+            double y = horizontal && trailing ? cell.Bottom - thickness : cell.Y;
+            double segment = border.Style switch
+            {
+                TableBorderStyle.Dotted => thickness,
+                TableBorderStyle.Dashed => thickness * 3,
+                _ => length
+            };
+            for (double offset = 0; offset < length; offset += segment + thickness)
+            {
+                double extent = Math.Min(segment, length - offset);
+                list.FillRect(horizontal
+                    ? new BRect(x + offset, y, extent, thickness)
+                    : new BRect(x, y + offset, thickness, extent), border.Color);
+            }
         }
 
         if (content.Note is not null)

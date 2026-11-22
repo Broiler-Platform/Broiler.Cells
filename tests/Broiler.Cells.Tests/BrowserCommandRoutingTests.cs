@@ -1,5 +1,6 @@
 using Broiler.Cells.Core;
 using Broiler.Cells.UI;
+using Broiler.Documents.Model;
 using Broiler.Graphics.Color;
 using Broiler.Graphics.Geometry;
 using Broiler.UI.Button.Standard;
@@ -40,6 +41,22 @@ public class BrowserCommandRoutingTests
         Assert.False(dialog.IsPresented);
         Assert.Equal(new BColor(40, 120, 184), sheet.GetContent(1, 1).Shading);
         Assert.Equal(default, sheet.GetContent(0, 0).Shading);
+
+        Assert.True(view.CommandDispatcher.TryExecute("format.appearance"));
+        dialog = Assert.IsType<StandardDialog>(app.Session.ModalElement);
+        var buttons = Assert.Single(dialog.Children).Children.OfType<StandardButton>().ToArray();
+        var width = Assert.Single(buttons, button => button.Text == "2");
+        width.Click();
+        var style = Assert.Single(buttons, button => button.Text == "Dashed");
+        style.Click();
+        Assert.Equal("2 (selected)", width.AccessibleName);
+        Assert.Equal("Dashed (selected)", style.AccessibleName);
+        Assert.Single(buttons, button => button.Text == "Outer borders…").Click();
+        chooser = Assert.IsType<StandardColorDialog>(app.Session.ModalElement);
+        chooser.SelectedColor = BColor.Black;
+        chooser.AcceptSelection();
+        Assert.Equal(new TableBorder(BColor.Black, 2, TableBorderStyle.Dashed),
+            sheet.GetContent(1, 1).Borders.Top);
     }
 
     [Fact]

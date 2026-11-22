@@ -20,7 +20,7 @@ public sealed class WorkbookSerializationTests
         var color = new BColor(23, 89, 145);
         sheet.SetCellShading(1, 1, color);
         sheet.SetCellFont(1, 1, new InlineStyle { Foreground = color });
-        sheet.SetCellBorders(1, 1, CellBorders.All(new TableBorder(color, 1)));
+        sheet.SetCellBorders(1, 1, CellBorders.All(new TableBorder(color, 2, TableBorderStyle.Dashed)));
 
         SheetModel RoundTrip(SheetModel input)
         {
@@ -35,6 +35,8 @@ public sealed class WorkbookSerializationTests
         Assert.Equal(color, content.Shading);
         Assert.Equal(color, content.Font.Foreground);
         Assert.Equal(color, content.Borders.Top.Color);
+        Assert.Equal(TableBorderStyle.Dashed, content.Borders.Top.Style);
+        Assert.Equal(extension == ".xlsx" ? 1.5 : 2, content.Borders.Top.Width);
         Assert.True(content.Value.IsEmpty);
 
         restored.SetCellShading(1, 1, default);

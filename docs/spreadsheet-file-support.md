@@ -112,7 +112,7 @@ the entry before switching sheets/exporting.
 | P1 | Workbook-aware browser recovery | Versioned typed workbook snapshots with tests for formulas, additional sheets and restore compatibility. |
 | P1 | Import/export diagnostics UI | Review all diagnostics in a dialog, report write warnings, and make feature-loss decisions before export. |
 | P1 follow-up | Workbook formulas | Add cross-sheet references, rename/removal semantics and broader spreadsheet conformance. |
-| Implemented | Cell appearance | Configurable text color, fill and solid borders. XLSX and ODS round trips are covered by automated tests. See [implementation plan](#cell-appearance-implementation-plan). |
+| Implemented | Cell appearance | Configurable text color, fill and cell borders. XLSX and ODS round trips are covered by automated tests. See [implementation plan](#cell-appearance-implementation-plan). |
 | P2 | Larger/sparse sheets | Replace the dense 100×100 model and bound resource use while retaining worksheet positions. |
 | P2 | Fidelity extensions | Expand Documents support or preserve unsupported package parts where safe; add Excel/LibreOffice interoperability fixtures. |
 | P2 | Rich spreadsheet operations | Selections, range clipboard, structural row/column editing, undo/redo, named ranges, filtering and sorting. |
@@ -122,12 +122,15 @@ the entry before switching sheets/exporting.
 Open **Format → Cell Appearance** or **Appearance** in the toolbar. Choose text
 color, fill or a border preset to open the shared color chooser, then confirm
 the color to apply it. The reset buttons restore automatic text color, no fill
-or no borders.
+or no borders. In **Cell borders**, select a **Width** from 1 to 3 and a
+**Line style** (Solid, Dotted or Dashed). The line preview updates before you
+choose a border preset. ODS preserves the
+selected width. XLSX maps it to the widths available for that line style.
 
 **Implemented scope.** Apply text color, fill and borders to the current selection,
 including empty cells. Offer automatic text color, no fill, and no borders.
-Start with outer, inner and all-border presets for rectangular ranges and a
-solid line with selectable color. Keep the existing bold, italic, underline,
+Choose outer, inner or all-border presets for rectangular ranges and set the
+line color, width and style. Keep the existing bold, italic, underline,
 alignment, wrap and number-format actions available alongside the new controls.
 Additional border patterns and font family or size controls can follow.
 

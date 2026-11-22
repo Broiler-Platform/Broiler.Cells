@@ -1,4 +1,5 @@
 using Broiler.Graphics.Color;
+using Broiler.Documents.Model;
 using Broiler.Graphics.Geometry;
 using Broiler.UI;
 using Broiler.UI.Button.Standard;
@@ -12,32 +13,39 @@ namespace Broiler.Cells.UI;
 
 internal sealed class CellAppearanceDialog : UiElement
 {
-    private readonly StandardLabel _selection;
-    private readonly StandardButton[] _buttons;
+    private readonly UiElement[][] _rows;
+    private readonly StandardLabel _borderHeading = new() { Text = "Cell borders" };
+    private int _width = 1;
+    private TableBorderStyle _style = TableBorderStyle.Solid;
 
     private CellAppearanceDialog(UiWindow owner, BSize viewport, string description,
-        Func<string, BColor> initialColor, Action<string, BColor> apply, StandardDialog dialog)
+        Func<string, BColor> initialColor, Action<string, BColor, double, TableBorderStyle> apply, StandardDialog dialog)
     {
-        _selection = new StandardLabel { Text = description };
-        _buttons =
+        _rows =
         [
-            Button("Text color…", () => ChooseColor("Text color", "text")),
-            Button("Fill color…", () => ChooseColor("Fill color", "fill")),
-            Button("Outer borders…", () => ChooseColor("Outer border color", "outer")),
-            Button("Inner borders…", () => ChooseColor("Inner border color", "inner")),
-            Button("All borders…", () => ChooseColor("Border color", "all")),
-            Button("No borders", () => Apply("none", default)),
-            Button("Automatic text", () => Apply("text", default)),
-            Button("No fill", () => Apply("fill", default)),
-            Button("Close", () => dialog.Cancel())
+            [new StandardLabel { Text = description }],
+            [new StandardLabel { Text = "Text and fill" }],
+            [Button("Text color…", () => ChooseColor("Text color", "text")),
+             Button("Fill color…", () => ChooseColor("Fill color", "fill")),
+             Button("Automatic text", () => Apply("text", default)),
+             Button("No fill", () => Apply("fill", default))],
+            [_borderHeading],
+            [new StandardLabel { Text = "Width" }, .. Choices(new[] { 1, 2, 3 }, _width, value => _width = value)],
+            [new StandardLabel { Text = "Line style" }, .. Choices(new[] { TableBorderStyle.Solid,
+                TableBorderStyle.Dotted, TableBorderStyle.Dashed }, _style, value => _style = value)],
+            [Button("Outer borders…", () => ChooseColor("Outer border color", "outer")),
+             Button("Inner borders…", () => ChooseColor("Inner border color", "inner")),
+             Button("All borders…", () => ChooseColor("Border color", "all")),
+             Button("No borders", () => Apply("none", default))],
+            [Button("Close", () => dialog.Cancel())]
         ];
-        AddChild(_selection);
-        foreach (var button in _buttons)
-            AddChild(button);
+        foreach (var row in _rows)
+            foreach (var element in row)
+                AddChild(element);
 
         void Apply(string action, BColor color)
         {
-            apply(action, color);
+            apply(action, color, _width, _style);
             dialog.Accept();
         }
 
@@ -89,12 +97,12 @@ internal sealed class CellAppearanceDialog : UiElement
     }
 
     public static void Show(UiWindow owner, BSize viewport, string description,
-        Func<string, BColor> initialColor, Action<string, BColor> apply)
+        Func<string, BColor> initialColor, Action<string, BColor, double, TableBorderStyle> apply)
     {
         var dialog = new StandardDialog
         {
             Title = "Cell Appearance",
-            PreferredSize = new BSize(440, 185),
+            PreferredSize = new BSize(520, 320),
             CanClose = !OperatingSystem.IsBrowser()
         };
         dialog.AddChild(new CellAppearanceDialog(owner, viewport, description, initialColor, apply, dialog));
@@ -108,26 +116,73 @@ internal sealed class CellAppearanceDialog : UiElement
         return button;
     }
 
+    private StandardButton[] Choices<T>(T[] values, T selected, Action<T> choose) where T : notnull
+    {
+        var buttons = new StandardButton[values.Length];
+        for (int i = 0; i < values.Length; i++)
+        {
+            T value = values[i];
+            buttons[i] = Button(value.ToString()!, () =>
+            {
+                selected = value;
+                choose(value);
+                UpdateSelection();
+                Invalidate(UiInvalidationKind.Render);
+            });
+        }
+        UpdateSelection();
+        return buttons;
+
+        void UpdateSelection()
+        {
+            for (int i = 0; i < values.Length; i++)
+            {
+                string label = values[i].ToString()!;
+                bool active = selected.Equals(values[i]);
+                buttons[i].Text = active ? $"✓ {label}" : label;
+                buttons[i].AccessibleName = active ? $"{label} (selected)" : label;
+            }
+        }
+    }
+
     protected override BSize MeasureCore(BSize availableSize)
     {
-        _selection.Measure(new BSize(availableSize.Width, 24));
-        foreach (var button in _buttons)
-            button.Measure(new BSize(ColumnWidth(availableSize.Width), 28));
-        return new BSize(availableSize.Width, 122);
+        foreach (var row in _rows)
+            foreach (var element in row)
+                element.Measure(new BSize(ColumnWidth(availableSize.Width, row.Length), 28));
+        return new BSize(availableSize.Width, 244);
     }
 
     protected override void ArrangeCore(BRect bounds)
     {
-        _selection.Arrange(new BRect(bounds.Left, bounds.Top, bounds.Width, 24));
-        double width = ColumnWidth(bounds.Width);
-        double height = Math.Clamp((bounds.Height - 38) / 3, 0, 28);
-        for (int i = 0; i < _buttons.Length; i++)
+        const double gap = 5;
+        double height = Math.Clamp((bounds.Height - (_rows.Length - 1) * gap) / _rows.Length, 0, 28);
+        for (int r = 0; r < _rows.Length; r++)
         {
-            double left = bounds.Left + i % 3 * (width + 6);
-            double top = bounds.Top + 26 + i / 3 * (height + 6);
-            _buttons[i].Arrange(new BRect(left, top, width, height));
+            var row = _rows[r];
+            bool footer = r == _rows.Length - 1;
+            double width = ColumnWidth(bounds.Width, footer ? 4 : row.Length);
+            double left = footer ? bounds.Right - width : bounds.Left;
+            for (int c = 0; c < row.Length; c++)
+                row[c].Arrange(new BRect(left + c * (width + 6), bounds.Top + r * (height + gap), width, height));
         }
     }
 
-    private static double ColumnWidth(double width) => Math.Max(0, (width - 12) / 3);
+    protected override void RenderCore(UiRenderContext context)
+    {
+        base.RenderCore(context);
+        var row = _borderHeading.Bounds;
+        double length = Math.Min(120, Math.Max(0, row.Width / 2 - 8));
+        double segment = _style switch
+        {
+            TableBorderStyle.Dotted => _width,
+            TableBorderStyle.Dashed => 3 * _width,
+            _ => length
+        };
+        for (double offset = 0; offset < length; offset += segment + _width)
+            context.RenderList.FillRect(new BRect(row.Right - length + offset,
+                row.Y + (row.Height - _width) / 2, Math.Min(segment, length - offset), _width), CellsPalette.Title);
+    }
+
+    private static double ColumnWidth(double width, int columns) => Math.Max(0, (width - (columns - 1) * 6) / columns);
 }
